@@ -109,12 +109,22 @@ export default function App() {
   return (
     <main className="min-h-screen bg-[#f3f6fb] text-ink">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
-        <header className="flex flex-col justify-between gap-3 border-b border-line pb-4 lg:flex-row lg:items-end">
-          <div>
-            <p className="text-sm font-medium text-teal">Enterprise software evaluation</p>
-            <h1 className="text-2xl font-semibold tracking-normal text-ink">SaaS Intelligence Copilot</h1>
+        <header className="app-header">
+          <div className="brand-lockup">
+            <div className="brand-mark" aria-hidden="true">
+              <span>SI</span>
+              <i />
+            </div>
+            <div className="brand-copy">
+              <div className="brand-eyebrow">
+                <span>Enterprise software evaluation</span>
+                <span className="brand-badge">Live RAG Demo</span>
+              </div>
+              <h1>SaaS Intelligence Copilot</h1>
+              <p>Grounded SaaS evaluation across pricing, features, and reviews.</p>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="status-strip">
             <StatusPill icon={<Database size={16} />} label="Data" value={status?.source ?? "Loading"} />
             <StatusPill icon={<Layers3 size={16} />} label="Products" value={String(status?.product_count ?? "-")} />
             <StatusPill icon={<FileSearch size={16} />} label="Reviews" value={String(status?.review_count ?? "-")} />
@@ -331,8 +341,12 @@ export default function App() {
               </>
             ) : (
               <div className="empty-state">
-                <Search size={28} />
+                <div className="brand-mark brand-mark-small" aria-hidden="true">
+                  <span>SI</span>
+                  <i />
+                </div>
                 <span>Run analysis</span>
+                <p>Try a showcase query</p>
                 <div className="quick-presets">
                   {options.demo_presets.slice(0, 3).map((item, index) => (
                     <button

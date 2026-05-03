@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SaaS Intelligence Copilot">
+  <rect width="64" height="64" rx="14" fill="#172033"/>
+  <path d="M16 43h32" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
+  <path d="M42 26l5 5 8-10" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="15" y="37" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">SI</text>
+</svg>

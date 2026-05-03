@@ -147,10 +147,21 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "SaaS Intelligence Copilot" })).toBeVisible();
+  await expect(page.getByText("Grounded SaaS evaluation across pricing, features, and reviews.")).toBeVisible();
+  await expect(page.getByText("Live RAG Demo")).toBeVisible();
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByText("Products")).toBeVisible();
   await expect(page.getByText("335", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Analysis query")).toHaveValue(/Compare Zendesk/);
   await expect(page.getByRole("button", { name: /Run analysis/i })).toBeEnabled();
+});
+
+test("showcase preset buttons update the query", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByText("Try a showcase query")).toBeVisible();
+  await page.getByRole("button", { name: "CRM under $30" }).click();
+  await expect(page.getByLabel("Analysis query")).toHaveValue(/Recommend a CRM/);
 });
 
 test("shows selected chips and can clear feature selections", async ({ page }) => {
