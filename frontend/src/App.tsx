@@ -435,7 +435,8 @@ export default function App() {
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   const tileId = compact ? "brand-tile-small" : "brand-tile-main";
-  const ribbonId = compact ? "brand-ribbon-small" : "brand-ribbon-main";
+  const ringId = compact ? "brand-ring-small" : "brand-ring-main";
+  const lineId = compact ? "brand-line-small" : "brand-line-main";
   return (
     <svg
       className={compact ? "brand-logo brand-logo-small" : "brand-logo"}
@@ -444,28 +445,38 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       focusable="false"
     >
       <defs>
-        <linearGradient id={tileId} x1="8" y1="5" x2="66" y2="68" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#f0fdf4" />
+        <linearGradient id={tileId} x1="7" y1="5" x2="66" y2="68" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#fffdf7" />
+          <stop offset="1" stopColor="#ecfdf5" />
         </linearGradient>
-        <linearGradient id={ribbonId} x1="19" y1="16" x2="53" y2="58" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#0f766e" />
-          <stop offset="0.52" stopColor="#10b981" />
+        <linearGradient id={ringId} x1="19" y1="16" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#14b8a6" />
+          <stop offset="1" stopColor="#84cc16" />
+        </linearGradient>
+        <linearGradient id={lineId} x1="22" y1="39" x2="47" y2="24" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#10b981" />
           <stop offset="1" stopColor="#84cc16" />
         </linearGradient>
       </defs>
-      <rect x="4" y="4" width="64" height="64" rx="18" fill={`url(#${tileId})`} />
-      <rect x="5" y="5" width="62" height="62" rx="17" fill="none" stroke="#bbf7d0" strokeWidth="1.5" />
+      <rect x="5" y="5" width="62" height="62" rx="19" fill={`url(#${tileId})`} />
+      <rect x="6" y="6" width="60" height="60" rx="18" fill="none" stroke="#bbf7d0" strokeWidth="1.5" />
       <path
-        d="M52 19c-8-7-27-6-31 5-6 16 31 9 30 26-1 13-21 15-33 6"
+        d="M48.5 48.5 58 58"
         fill="none"
-        stroke={`url(#${ribbonId})`}
-        strokeWidth="10"
+        stroke={`url(#${ringId})`}
+        strokeWidth="7"
         strokeLinecap="round"
       />
-      <circle cx="52" cy="19" r="5.5" fill="#fb7185" />
-      <circle cx="18" cy="56" r="5.5" fill="#14b8a6" />
-      <circle cx="38" cy="36" r="3.5" fill="#ffffff" opacity="0.95" />
+      <circle cx="34" cy="33" r="20" fill="#fafffb" stroke={`url(#${ringId})`} strokeWidth="5.5" />
+      <path
+        d="M21.5 39 29.5 32 36.5 36.5 47.5 23.5"
+        fill="none"
+        stroke={`url(#${lineId})`}
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="47.5" cy="23.5" r="4.9" fill="#fb7185" stroke="#fffdf7" strokeWidth="2" />
     </svg>
   );
 }
