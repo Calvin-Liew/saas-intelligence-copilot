@@ -39,6 +39,45 @@ def test_options_endpoint_includes_feature_labels() -> None:
     assert data["demo_presets"][0]["label"] == "Support desk review risk"
 
 
+def test_options_endpoint_uses_single_processed_data_load(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    calls = 0
+    products = pd.DataFrame(
+        [
+            {
+                "product_name": "Alpha CRM",
+                "category": "Crm",
+                "normalized_name": "alpha crm",
+                "automation": 1,
+            },
+            {
+                "product_name": "Beta Desk",
+                "category": "Customer Support",
+                "normalized_name": "beta desk",
+                "ticket_creation_and_assignment": 1,
+            },
+        ]
+    )
+
+    def fake_load_processed_or_demo():
+        nonlocal calls
+        calls += 1
+        return products, pd.DataFrame(), "test data"
+
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fake_load_processed_or_demo)
+    test_client = TestClient(api_module.create_app())
+
+    response = test_client.get("/api/options")
+
+    assert response.status_code == 200
+    assert calls == 1
+    data = response.json()
+    assert data["categories"] == ["All", "Crm", "Customer Support"]
+    assert data["products"] == ["Alpha CRM", "Beta Desk"]
+    assert any(feature["id"] == "automation" for feature in data["features"])
+
+
 def test_analyze_endpoint_serializes_tables_and_provenance() -> None:
     response = client.post(
         "/api/analyze",

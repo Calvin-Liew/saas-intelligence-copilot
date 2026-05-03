@@ -48,6 +48,10 @@ PROCESSED_ARTIFACT_FILES = [
     "evaluation_results.csv",
 ]
 
+_PROCESSED_CACHE: dict[
+    tuple[object, ...], tuple[pd.DataFrame, pd.DataFrame, str]
+] = {}
+
 
 def pick_column(
     df: pd.DataFrame, candidates: Iterable[str], contains: Iterable[str] = ()
@@ -679,6 +683,12 @@ def ensure_data_ready(paths=PATHS, artifact_url: str | None = None) -> str:
 
 def load_processed_or_demo(paths=PATHS) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     readiness = ensure_data_ready(paths)
+    cache_key = _processed_cache_key(paths, readiness)
+    cached = _PROCESSED_CACHE.get(cache_key)
+    if cached is not None:
+        products, reviews, notice = cached
+        return products.copy(deep=False), reviews.copy(deep=False), notice
+
     if paths.product_master.exists() and paths.review_chunks.exists():
         products = pd.read_csv(paths.product_master)
         reviews = pd.read_csv(paths.review_chunks)
@@ -690,15 +700,42 @@ def load_processed_or_demo(paths=PATHS) -> tuple[pd.DataFrame, pd.DataFrame, str
         if "feature_evidence_quality" in products.columns:
             products["feature_evidence_quality"] = products["feature_evidence_quality"].fillna("missing")
         if "data_source" in products.columns and products["data_source"].eq("fictional_demo").all():
-            return products, reviews, DEMO_NOTICE
-        return products, reviews, "Using processed Kaggle/local dataset files. " + readiness
+            result = (products, reviews, DEMO_NOTICE)
+            _PROCESSED_CACHE[cache_key] = result
+            return products.copy(deep=False), reviews.copy(deep=False), DEMO_NOTICE
+        notice = "Using processed Kaggle/local dataset files. " + readiness
+        result = (products, reviews, notice)
+        _PROCESSED_CACHE[cache_key] = result
+        return products.copy(deep=False), reviews.copy(deep=False), notice
 
     products, reviews, _ = build_product_master(
         demo_products(), demo_pricing(), demo_features(), demo_reviews()
     )
     products["data_source"] = "fictional_demo"
     reviews["data_source"] = "fictional_demo"
-    return products, reviews, DEMO_NOTICE
+    result = (products, reviews, DEMO_NOTICE)
+    _PROCESSED_CACHE[cache_key] = result
+    return products.copy(deep=False), reviews.copy(deep=False), DEMO_NOTICE
+
+
+def _processed_cache_key(paths=PATHS, readiness: str = "") -> tuple[object, ...]:
+    return (
+        str(paths.product_master.resolve()),
+        _file_fingerprint(paths.product_master),
+        str(paths.review_chunks.resolve()),
+        _file_fingerprint(paths.review_chunks),
+        str(paths.index_dir.resolve()),
+        readiness,
+        bool(RUNTIME.production_mode),
+        RUNTIME.data_artifact_url,
+    )
+
+
+def _file_fingerprint(path: Path) -> tuple[bool, int, int]:
+    if not path.exists():
+        return (False, 0, 0)
+    stat = path.stat()
+    return (True, stat.st_size, stat.st_mtime_ns)
 
 
 def _has_processed_data(paths=PATHS) -> bool:

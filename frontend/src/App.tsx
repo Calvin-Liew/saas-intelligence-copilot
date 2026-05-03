@@ -54,11 +54,16 @@ export default function App() {
   );
 
   useEffect(() => {
-    Promise.all([getStatus(), getOptions()])
-      .then(([statusResult, optionResult]) => {
+    getStatus()
+      .then((statusResult) => {
         setStatus(statusResult);
-        setOptions(optionResult);
         setUseLlm(Boolean(statusResult.llm.available));
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+
+    getOptions()
+      .then((optionResult) => {
+        setOptions(optionResult);
         applyPreset(optionResult.demo_presets[0], optionResult);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from typing import Any
 
 import pandas as pd
@@ -13,13 +14,10 @@ from .data_loader import load_processed_or_demo
 from .llm import active_llm_available, active_llm_label
 from .pipeline import (
     display_feature_name,
-    list_available_features,
-    list_categories,
-    list_product_names,
     run_analysis,
 )
 from .presets import DEMO_PRESETS
-from .scoring import is_review_derived_feature
+from .scoring import feature_columns, is_review_derived_feature
 
 
 class AnalyzeRequest(BaseModel):
@@ -73,10 +71,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/options")
     def options() -> dict[str, Any]:
-        features = list_available_features()
+        products, _, _ = load_processed_or_demo()
+        features = feature_columns(products)
         return {
-            "categories": list_categories(),
-            "products": list_product_names(),
+            "categories": _categories_from_products(products),
+            "products": _product_names_from_products(products),
             "features": [
                 {
                     "id": feature,
@@ -141,6 +140,7 @@ def _active_model() -> str:
     return "grounded-template"
 
 
+@lru_cache(maxsize=1)
 def _chroma_status() -> dict[str, Any]:
     try:
         import chromadb
@@ -161,6 +161,17 @@ def _chroma_status() -> dict[str, Any]:
             "review_count": 0,
             "status": f"Unavailable ({type(exc).__name__})",
         }
+
+
+def _categories_from_products(products: pd.DataFrame) -> list[str]:
+    categories = sorted(
+        [item for item in products.get("category", pd.Series(dtype=str)).dropna().unique() if str(item)]
+    )
+    return ["All", *categories]
+
+
+def _product_names_from_products(products: pd.DataFrame) -> list[str]:
+    return sorted(products.get("product_name", pd.Series(dtype=str)).dropna().astype(str).unique())
 
 
 def _records(frame: pd.DataFrame) -> list[dict[str, Any]]:
