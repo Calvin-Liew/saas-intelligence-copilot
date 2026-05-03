@@ -82,9 +82,9 @@ const fallbackStatus: ApiStatus = {
   product_count: 335,
   review_count: 4899,
   category_count: 29,
-  chroma: { ready: false, product_count: 335, review_count: 4899, status: "Connecting" },
+  chroma: { ready: false, product_count: 335, review_count: 4899, status: "Checking index" },
   llm: {
-    label: "Connecting",
+    label: "Checking provider",
     available: false,
     provider: "template",
     model: "grounded-template",

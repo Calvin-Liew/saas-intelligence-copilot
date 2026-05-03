@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from functools import lru_cache
+from time import monotonic
 from typing import Any
 
 import pandas as pd
@@ -18,6 +18,10 @@ from .pipeline import (
 )
 from .presets import DEMO_PRESETS
 from .scoring import feature_columns, is_review_derived_feature
+
+_CHROMA_STATUS_CACHE: tuple[float, dict[str, Any]] | None = None
+_CHROMA_SUCCESS_TTL_SECONDS = 300
+_CHROMA_FAILURE_TTL_SECONDS = 10
 
 
 class AnalyzeRequest(BaseModel):
@@ -140,8 +144,19 @@ def _active_model() -> str:
     return "grounded-template"
 
 
-@lru_cache(maxsize=1)
 def _chroma_status() -> dict[str, Any]:
+    global _CHROMA_STATUS_CACHE
+    now = monotonic()
+    if _CHROMA_STATUS_CACHE and _CHROMA_STATUS_CACHE[0] > now:
+        return dict(_CHROMA_STATUS_CACHE[1])
+
+    status = _compute_chroma_status()
+    ttl = _CHROMA_SUCCESS_TTL_SECONDS if status["ready"] else _CHROMA_FAILURE_TTL_SECONDS
+    _CHROMA_STATUS_CACHE = (now + ttl, status)
+    return dict(status)
+
+
+def _compute_chroma_status() -> dict[str, Any]:
     try:
         import chromadb
 

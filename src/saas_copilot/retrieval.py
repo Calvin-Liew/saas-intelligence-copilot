@@ -96,16 +96,7 @@ class ChromaRetriever:
         }
 
     def available(self) -> bool:
-        if not RUNTIME.use_chroma or self.rows.empty or not self.index_path.exists():
-            return False
-        try:
-            import chromadb
-
-            client = chromadb.PersistentClient(path=str(self.index_path))
-            collection = client.get_collection(self.collection_name)
-            return collection.count() > 0
-        except Exception:
-            return False
+        return bool(RUNTIME.use_chroma and not self.rows.empty and self.index_path.exists())
 
     def search(
         self,

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import sys
+from types import SimpleNamespace
 
 import pandas as pd
 from fastapi.testclient import TestClient
@@ -26,6 +28,52 @@ def test_status_endpoint_reports_counts() -> None:
     assert "llm" in data
     assert "status" in data["llm"]
     assert "chroma" in data
+
+
+def test_chroma_status_failure_cache_expires_quickly(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    class FailingClient:
+        def __init__(self, *args, **kwargs) -> None:
+            raise RuntimeError("startup race")
+
+    class ReadyCollection:
+        def __init__(self, count: int) -> None:
+            self._count = count
+
+        def count(self) -> int:
+            return self._count
+
+    class ReadyClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def get_collection(self, name: str) -> ReadyCollection:
+            return ReadyCollection(335 if name == "products" else 4899)
+
+    api_module._CHROMA_STATUS_CACHE = None
+    monkeypatch.setitem(sys.modules, "chromadb", SimpleNamespace(PersistentClient=FailingClient))
+
+    failed = api_module._chroma_status()
+    still_cached = api_module._chroma_status()
+
+    assert failed["ready"] is False
+    assert "RuntimeError" in failed["status"]
+    assert still_cached["ready"] is False
+
+    expires_at, cached_status = api_module._CHROMA_STATUS_CACHE
+    api_module._CHROMA_STATUS_CACHE = (expires_at - api_module._CHROMA_FAILURE_TTL_SECONDS - 1, cached_status)
+    monkeypatch.setitem(sys.modules, "chromadb", SimpleNamespace(PersistentClient=ReadyClient))
+
+    recovered = api_module._chroma_status()
+
+    assert recovered == {
+        "ready": True,
+        "product_count": 335,
+        "review_count": 4899,
+        "status": "Ready (335/4899)",
+    }
+    api_module._CHROMA_STATUS_CACHE = None
 
 
 def test_options_endpoint_includes_feature_labels() -> None:
