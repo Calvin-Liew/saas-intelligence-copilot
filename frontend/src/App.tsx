@@ -373,31 +373,25 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       focusable="false"
     >
       <rect x="3" y="3" width="66" height="66" rx="16" fill="#172033" />
+      <path d="M18 50h36" stroke="#2563eb" strokeWidth="5" strokeLinecap="round" opacity="0.78" />
       <path
-        d="M15 20h42M15 34h42M15 48h42M22 14v44M36 14v44M50 14v44"
-        stroke="#314056"
-        strokeWidth="1.5"
-      />
-      <path d="M14 52h44" stroke="#2563eb" strokeWidth="5" strokeLinecap="round" opacity="0.75" />
-      <path
-        d="M14 49c9-8 17-9 25-3 7 5 13 5 20-5"
+        d="M18 48c9-7 18-7 28 0 4 3 7 3 11-1"
         fill="none"
         stroke="#2dd4bf"
         strokeWidth="4"
         strokeLinecap="round"
       />
-      <circle cx="16" cy="49" r="4" fill="#ffffff" />
-      <circle cx="38" cy="46" r="4" fill="#2563eb" />
-      <circle cx="59" cy="41" r="4" fill="#2dd4bf" />
+      <circle cx="18" cy="48" r="4" fill="#ffffff" />
+      <circle cx="46" cy="48" r="4" fill="#2dd4bf" />
       <path
-        d="M43 24l5 5 10-13"
+        d="M45 25l5 5 9-12"
         fill="none"
         stroke="#2dd4bf"
         strokeWidth="4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <text x="15" y="41" fill="#ffffff" fontFamily="Inter, Arial, sans-serif" fontSize="22" fontWeight="850">
+      <text x="15" y="40" fill="#ffffff" fontFamily="Inter, Arial, sans-serif" fontSize="24" fontWeight="850">
         SI
       </text>
     </svg>
