@@ -176,7 +176,7 @@ export default function App() {
   const preset = options.demo_presets[selectedPreset];
 
   return (
-    <main className="min-h-screen bg-[#f4f7f2] text-ink">
+    <main className="min-h-screen bg-canvas text-ink">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
         <header className="app-header">
           <div className="brand-lockup">
@@ -446,20 +446,20 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
     >
       <defs>
         <linearGradient id={tileId} x1="7" y1="5" x2="66" y2="68" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#fffdf7" />
-          <stop offset="1" stopColor="#ecfdf5" />
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#eff6ff" />
         </linearGradient>
         <linearGradient id={ringId} x1="19" y1="16" x2="54" y2="54" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#14b8a6" />
-          <stop offset="1" stopColor="#a3b938" />
+          <stop offset="0" stopColor="#096fe0" />
+          <stop offset="1" stopColor="#06a9d2" />
         </linearGradient>
         <linearGradient id={lineId} x1="22" y1="39" x2="47" y2="24" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#0f9f7a" />
-          <stop offset="1" stopColor="#a3b938" />
+          <stop offset="0" stopColor="#075cb6" />
+          <stop offset="1" stopColor="#06a9d2" />
         </linearGradient>
       </defs>
       <rect x="5" y="5" width="62" height="62" rx="19" fill={`url(#${tileId})`} />
-      <rect x="6" y="6" width="60" height="60" rx="18" fill="none" stroke="#bbf7d0" strokeWidth="1.5" />
+      <rect x="6" y="6" width="60" height="60" rx="18" fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
       <path
         d="M48.5 48.5 58 58"
         fill="none"
@@ -467,7 +467,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
         strokeWidth="7"
         strokeLinecap="round"
       />
-      <circle cx="34" cy="33" r="20" fill="#fafffb" stroke={`url(#${ringId})`} strokeWidth="5.5" />
+      <circle cx="34" cy="33" r="20" fill="#f8fbff" stroke={`url(#${ringId})`} strokeWidth="5.5" />
       <path
         d="M21.5 39 29.5 32 36.5 36.5 47.5 23.5"
         fill="none"
@@ -476,7 +476,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="47.5" cy="23.5" r="4.9" fill="#f26f6c" stroke="#fffdf7" strokeWidth="2" />
+      <circle cx="47.5" cy="23.5" r="4.9" fill="#38bdf8" stroke="#ffffff" strokeWidth="2" />
     </svg>
   );
 }
