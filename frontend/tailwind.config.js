@@ -4,16 +4,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#172033",
-        muted: "#667085",
-        line: "#d9dee8",
-        panel: "#f7f9fc",
-        accent: "#2563eb",
-        teal: "#0f766e",
-        amber: "#b45309",
+        canvas: "hsl(var(--color-canvas) / <alpha-value>)",
+        surface: "hsl(var(--color-surface) / <alpha-value>)",
+        ink: "hsl(var(--color-ink) / <alpha-value>)",
+        muted: "hsl(var(--color-muted) / <alpha-value>)",
+        line: "hsl(var(--color-line) / <alpha-value>)",
+        panel: "hsl(var(--color-panel) / <alpha-value>)",
+        accent: "hsl(var(--color-accent) / <alpha-value>)",
+        teal: "hsl(var(--color-teal) / <alpha-value>)",
+        coral: "hsl(var(--color-coral) / <alpha-value>)",
+        amber: "hsl(var(--color-amber) / <alpha-value>)",
+        danger: "hsl(var(--color-danger) / <alpha-value>)",
       },
       boxShadow: {
-        soft: "0 16px 40px rgba(23, 32, 51, 0.08)",
+        soft: "var(--shadow-soft)",
+      },
+      borderRadius: {
+        ds: "var(--radius-md)",
+        "ds-lg": "var(--radius-lg)",
       },
     },
   },

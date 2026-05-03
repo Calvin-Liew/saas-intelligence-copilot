@@ -176,7 +176,7 @@ export default function App() {
   const preset = options.demo_presets[selectedPreset];
 
   return (
-    <main className="min-h-screen bg-[#f3f6fb] text-ink">
+    <main className="min-h-screen bg-[#f4f7f2] text-ink">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
         <header className="app-header">
           <div className="brand-lockup">
@@ -451,11 +451,11 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
         </linearGradient>
         <linearGradient id={ringId} x1="19" y1="16" x2="54" y2="54" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#14b8a6" />
-          <stop offset="1" stopColor="#84cc16" />
+          <stop offset="1" stopColor="#a3b938" />
         </linearGradient>
         <linearGradient id={lineId} x1="22" y1="39" x2="47" y2="24" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#10b981" />
-          <stop offset="1" stopColor="#84cc16" />
+          <stop offset="0" stopColor="#0f9f7a" />
+          <stop offset="1" stopColor="#a3b938" />
         </linearGradient>
       </defs>
       <rect x="5" y="5" width="62" height="62" rx="19" fill={`url(#${tileId})`} />
@@ -476,7 +476,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="47.5" cy="23.5" r="4.9" fill="#fb7185" stroke="#fffdf7" strokeWidth="2" />
+      <circle cx="47.5" cy="23.5" r="4.9" fill="#f26f6c" stroke="#fffdf7" strokeWidth="2" />
     </svg>
   );
 }

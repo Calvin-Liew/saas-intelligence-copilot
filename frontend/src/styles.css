@@ -2,11 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-canvas: 90 22% 96%;
+  --color-surface: 0 0% 100%;
+  --color-panel: 84 22% 96%;
+  --color-ink: 165 14% 17%;
+  --color-muted: 150 6% 43%;
+  --color-line: 135 18% 87%;
+  --color-accent: 164 83% 34%;
+  --color-teal: 174 78% 26%;
+  --color-coral: 2 84% 69%;
+  --color-amber: 36 82% 38%;
+  --color-danger: 0 72% 44%;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.875rem;
+  --shadow-soft: 0 16px 40px hsl(var(--color-ink) / 0.08);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
+  background: hsl(var(--color-canvas));
   margin: 0;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -31,16 +49,16 @@ input[type="number"],
 @layer components {
   .app-header {
     background:
-      radial-gradient(circle at 8% 0%, rgba(20, 184, 166, 0.15), transparent 36%),
-      radial-gradient(circle at 98% 6%, rgba(251, 113, 133, 0.12), transparent 30%),
-      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 253, 244, 0.9));
+      radial-gradient(circle at 8% 0%, rgba(15, 159, 122, 0.16), transparent 36%),
+      radial-gradient(circle at 98% 6%, rgba(242, 111, 108, 0.12), transparent 30%),
+      linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(236, 253, 245, 0.9));
     box-shadow: 0 20px 55px rgba(15, 118, 110, 0.1);
-    @apply relative flex flex-col justify-between gap-4 overflow-hidden rounded-2xl border border-emerald-100/80 p-4 backdrop-blur lg:flex-row lg:items-center;
+    @apply relative flex flex-col justify-between gap-4 overflow-hidden rounded-ds-lg border border-accent/20 p-4 backdrop-blur lg:flex-row lg:items-center;
   }
 
   .app-header::before {
     content: "";
-    background: linear-gradient(90deg, rgba(20, 184, 166, 0.95) 0%, rgba(132, 204, 22, 0.82) 55%, rgba(251, 113, 133, 0.82) 100%);
+    background: linear-gradient(90deg, rgba(15, 159, 122, 0.95) 0%, rgba(163, 185, 56, 0.86) 55%, rgba(242, 111, 108, 0.82) 100%);
     @apply absolute left-4 right-4 top-0 h-1 rounded-b-full;
   }
 
@@ -48,7 +66,7 @@ input[type="number"],
     content: "";
     background:
       linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.72) 44%, transparent 70%),
-      radial-gradient(circle at 86% 90%, rgba(132, 204, 22, 0.12), transparent 32%);
+      radial-gradient(circle at 86% 90%, rgba(163, 185, 56, 0.12), transparent 32%);
     @apply pointer-events-none absolute inset-0 opacity-80;
   }
 
@@ -61,7 +79,7 @@ input[type="number"],
   }
 
   .brand-logo {
-    filter: drop-shadow(0 14px 20px rgba(16, 185, 129, 0.2));
+    filter: drop-shadow(0 14px 20px rgba(15, 159, 122, 0.2));
     @apply h-14 w-14 shrink-0;
   }
 
@@ -90,11 +108,11 @@ input[type="number"],
   }
 
   .status-strip {
-    @apply flex w-full flex-wrap gap-1.5 rounded-xl border border-emerald-100/80 bg-white/70 p-1.5 text-sm shadow-sm backdrop-blur-sm lg:w-auto lg:max-w-[660px] lg:justify-end;
+    @apply flex w-full flex-wrap gap-1.5 rounded-ds-lg border border-accent/15 bg-surface/70 p-1.5 text-sm shadow-sm backdrop-blur-sm lg:w-auto lg:max-w-[660px] lg:justify-end;
   }
 
   .panel {
-    @apply rounded-lg border border-line bg-white p-4 shadow-soft;
+    @apply rounded-ds-lg border border-line bg-surface p-4 shadow-soft;
   }
 
   .panel-title {
@@ -122,11 +140,11 @@ input[type="number"],
   .field input,
   .field select,
   .field textarea {
-    @apply rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-blue-100 disabled:bg-panel disabled:text-muted;
+    @apply rounded-ds border border-line bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:bg-panel disabled:text-muted;
   }
 
   .toggle {
-    @apply flex h-10 items-center gap-2 rounded-md border border-line bg-panel px-3 text-sm font-medium text-ink;
+    @apply flex h-10 items-center gap-2 rounded-ds border border-line bg-panel px-3 text-sm font-medium text-ink;
   }
 
   .toggle input {
@@ -134,11 +152,11 @@ input[type="number"],
   }
 
   .primary-button {
-    @apply inline-flex h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300;
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-ds bg-accent px-4 text-sm font-semibold text-white transition hover:bg-teal disabled:cursor-not-allowed disabled:bg-line;
   }
 
   .status-pill {
-    @apply flex min-h-10 min-w-[126px] flex-1 items-center gap-2 rounded-lg border border-transparent bg-white/85 px-3 text-xs shadow-sm ring-1 ring-emerald-100/70 lg:flex-none;
+    @apply flex min-h-10 min-w-[126px] flex-1 items-center gap-2 rounded-ds border border-transparent bg-surface/85 px-3 text-xs shadow-sm ring-1 ring-accent/15 lg:flex-none;
   }
 
   .status-pill svg {
@@ -154,7 +172,7 @@ input[type="number"],
   }
 
   .metric {
-    @apply flex items-center gap-3 rounded-lg border border-line bg-white p-4 shadow-soft;
+    @apply flex items-center gap-3 rounded-ds-lg border border-line bg-surface p-4 shadow-soft;
   }
 
   .metric span {
@@ -171,15 +189,15 @@ input[type="number"],
   }
 
   .notice-warn {
-    @apply border-yellow-200 bg-yellow-50 text-amber;
+    @apply border-amber/25 bg-amber/10 text-amber;
   }
 
   .notice-error {
-    @apply border-red-200 bg-red-50 text-red-700;
+    @apply border-danger/25 bg-danger/10 text-danger;
   }
 
   .multi-list {
-    @apply max-h-44 overflow-auto rounded-md border border-line bg-white;
+    @apply max-h-44 overflow-auto rounded-ds border border-line bg-surface;
   }
 
   .selected-chips {
@@ -187,7 +205,7 @@ input[type="number"],
   }
 
   .selected-chips button {
-    @apply inline-flex max-w-full items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-medium text-accent;
+    @apply inline-flex max-w-full items-center gap-1 rounded-full border border-accent/20 bg-accent/10 px-2 py-1 text-xs font-medium text-accent;
   }
 
   .selected-chips span {
@@ -195,7 +213,7 @@ input[type="number"],
   }
 
   .multi-option {
-    @apply grid grid-cols-[20px_1fr_auto] items-center gap-2 border-b border-slate-100 px-2 py-1.5 text-sm last:border-b-0 hover:bg-panel;
+    @apply grid grid-cols-[20px_1fr_auto] items-center gap-2 border-b border-line/60 px-2 py-1.5 text-sm last:border-b-0 hover:bg-panel;
   }
 
   .multi-option input {
@@ -203,7 +221,7 @@ input[type="number"],
   }
 
   .multi-option em {
-    @apply rounded bg-slate-100 px-1.5 py-0.5 text-[11px] not-italic text-muted;
+    @apply rounded bg-panel px-1.5 py-0.5 text-[11px] not-italic text-muted;
   }
 
   .multi-empty {
@@ -211,7 +229,7 @@ input[type="number"],
   }
 
   .counter {
-    @apply flex h-10 items-center justify-center rounded-md border border-line bg-white text-sm font-semibold text-ink;
+    @apply flex h-10 items-center justify-center rounded-ds border border-line bg-surface text-sm font-semibold text-ink;
   }
 
   .query-actions {
@@ -239,7 +257,7 @@ input[type="number"],
   }
 
   .answer-card {
-    @apply min-w-0 rounded-lg border border-line bg-white p-4;
+    @apply min-w-0 rounded-ds-lg border border-line bg-surface p-4;
   }
 
   .answer-header,
@@ -262,7 +280,7 @@ input[type="number"],
   }
 
   .tool-card {
-    @apply grid min-h-44 grid-rows-[auto_auto_1fr] gap-3 rounded-lg border border-line bg-white p-4 shadow-sm;
+    @apply grid min-h-44 grid-rows-[auto_auto_1fr] gap-3 rounded-ds-lg border border-line bg-surface p-4 shadow-sm;
   }
 
   .tool-card h2 {
@@ -274,7 +292,7 @@ input[type="number"],
   }
 
   .tool-card > strong {
-    @apply w-fit rounded-md bg-emerald-50 px-2 py-1 text-sm font-semibold text-emerald-700;
+    @apply w-fit rounded-md bg-accent/10 px-2 py-1 text-sm font-semibold text-accent;
   }
 
   .tool-card dl {
@@ -321,11 +339,11 @@ input[type="number"],
   }
 
   .side-panel {
-    @apply rounded-lg border border-line bg-panel p-4;
+    @apply rounded-ds-lg border border-line bg-panel p-4;
   }
 
   .evidence-summary {
-    @apply rounded-lg border border-line bg-panel p-4;
+    @apply rounded-ds-lg border border-line bg-panel p-4;
   }
 
   .evidence-grid {
@@ -343,7 +361,7 @@ input[type="number"],
 
   .evidence-card,
   .review-card {
-    @apply rounded-lg border border-line bg-white p-3 shadow-sm;
+    @apply rounded-ds-lg border border-line bg-surface p-3 shadow-sm;
   }
 
   .evidence-card-top,
@@ -358,7 +376,7 @@ input[type="number"],
 
   .evidence-card-top span,
   .review-card-top span {
-    @apply shrink-0 rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-accent;
+    @apply shrink-0 rounded-md bg-accent/10 px-2 py-1 text-xs font-semibold text-accent;
   }
 
   .evidence-card dl {
@@ -390,7 +408,7 @@ input[type="number"],
   }
 
   .evidence-empty {
-    @apply rounded-lg border border-dashed border-line bg-white p-4 text-sm text-muted;
+    @apply rounded-ds-lg border border-dashed border-line bg-surface p-4 text-sm text-muted;
   }
 
   .side-panel h2,
@@ -407,7 +425,7 @@ input[type="number"],
   }
 
   table {
-    @apply min-w-full border-collapse bg-white text-left text-sm;
+    @apply min-w-full border-collapse bg-surface text-left text-sm;
   }
 
   th {
@@ -415,7 +433,7 @@ input[type="number"],
   }
 
   td {
-    @apply max-w-[360px] border-b border-slate-100 px-3 py-2 align-top text-ink;
+    @apply max-w-[360px] border-b border-line/60 px-3 py-2 align-top text-ink;
   }
 
   tr:last-child td {
@@ -423,12 +441,12 @@ input[type="number"],
   }
 
   .missing-cell {
-    @apply bg-yellow-50 text-amber;
+    @apply bg-amber/10 text-amber;
   }
 
   .table-empty,
   .empty-state {
-    @apply flex min-h-48 items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-white text-sm font-medium text-muted;
+    @apply flex min-h-48 items-center justify-center gap-2 rounded-ds-lg border border-dashed border-line bg-surface text-sm font-medium text-muted;
   }
 
   .empty-state {
@@ -456,6 +474,6 @@ input[type="number"],
   }
 
   .table-link {
-    @apply inline-flex items-center gap-1 font-semibold text-accent hover:text-blue-700;
+    @apply inline-flex items-center gap-1 font-semibold text-accent hover:text-teal;
   }
 }
