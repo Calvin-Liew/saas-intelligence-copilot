@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 from time import monotonic
 from typing import Any
 
@@ -170,12 +171,42 @@ def _compute_chroma_status() -> dict[str, Any]:
             "status": f"Ready ({product_count}/{review_count})",
         }
     except Exception as exc:
-        return {
-            "ready": False,
-            "product_count": 0,
-            "review_count": 0,
-            "status": f"Unavailable ({type(exc).__name__})",
-        }
+        return _chroma_sqlite_status(exc)
+
+
+def _chroma_sqlite_status(source_error: Exception) -> dict[str, Any]:
+    db_path = PATHS.index_dir / "chroma" / "chroma.sqlite3"
+    try:
+        with sqlite3.connect(db_path) as conn:
+            rows = conn.execute(
+                """
+                select c.name, count(e.id)
+                from collections c
+                join segments s on s.collection = c.id and s.scope = 'METADATA'
+                left join embeddings e on e.segment_id = s.id
+                where c.name in ('products', 'reviews')
+                group by c.name
+                """
+            ).fetchall()
+        counts = {str(name): int(count) for name, count in rows}
+        product_count = counts.get("products", 0)
+        review_count = counts.get("reviews", 0)
+        if product_count > 0 and review_count > 0:
+            return {
+                "ready": True,
+                "product_count": product_count,
+                "review_count": review_count,
+                "status": f"Ready ({product_count}/{review_count})",
+            }
+    except Exception:
+        pass
+
+    return {
+        "ready": False,
+        "product_count": 0,
+        "review_count": 0,
+        "status": f"Unavailable ({type(source_error).__name__})",
+    }
 
 
 def _categories_from_products(products: pd.DataFrame) -> list[str]:

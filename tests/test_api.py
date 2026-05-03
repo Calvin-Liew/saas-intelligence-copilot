@@ -30,40 +30,38 @@ def test_status_endpoint_reports_counts() -> None:
     assert "chroma" in data
 
 
-def test_chroma_status_failure_cache_expires_quickly(monkeypatch) -> None:
+def test_chroma_status_uses_sqlite_fallback_after_client_error(monkeypatch, tmp_path) -> None:
     from saas_copilot import api as api_module
 
     class FailingClient:
         def __init__(self, *args, **kwargs) -> None:
             raise RuntimeError("startup race")
 
-    class ReadyCollection:
-        def __init__(self, count: int) -> None:
-            self._count = count
+    chroma_dir = tmp_path / "indexes" / "chroma"
+    chroma_dir.mkdir(parents=True)
+    db_path = chroma_dir / "chroma.sqlite3"
+    import sqlite3
 
-        def count(self) -> int:
-            return self._count
-
-    class ReadyClient:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-        def get_collection(self, name: str) -> ReadyCollection:
-            return ReadyCollection(335 if name == "products" else 4899)
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            create table collections (id text primary key, name text);
+            create table segments (id text primary key, scope text, collection text);
+            create table embeddings (id integer primary key, segment_id text);
+            insert into collections values ('products-id', 'products');
+            insert into collections values ('reviews-id', 'reviews');
+            insert into segments values ('products-meta', 'METADATA', 'products-id');
+            insert into segments values ('reviews-meta', 'METADATA', 'reviews-id');
+            """
+        )
+        conn.executemany(
+            "insert into embeddings (segment_id) values (?)",
+            [("products-meta",)] * 335 + [("reviews-meta",)] * 4899,
+        )
 
     api_module._CHROMA_STATUS_CACHE = None
+    monkeypatch.setattr(api_module, "PATHS", SimpleNamespace(index_dir=tmp_path / "indexes"))
     monkeypatch.setitem(sys.modules, "chromadb", SimpleNamespace(PersistentClient=FailingClient))
-
-    failed = api_module._chroma_status()
-    still_cached = api_module._chroma_status()
-
-    assert failed["ready"] is False
-    assert "RuntimeError" in failed["status"]
-    assert still_cached["ready"] is False
-
-    expires_at, cached_status = api_module._CHROMA_STATUS_CACHE
-    api_module._CHROMA_STATUS_CACHE = (expires_at - api_module._CHROMA_FAILURE_TTL_SECONDS - 1, cached_status)
-    monkeypatch.setitem(sys.modules, "chromadb", SimpleNamespace(PersistentClient=ReadyClient))
 
     recovered = api_module._chroma_status()
 
