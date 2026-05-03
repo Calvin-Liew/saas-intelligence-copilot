@@ -135,12 +135,12 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
 test("shows selected chips and can clear feature selections", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("button", { name: /ticket_creation_and_assignment/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Ticket Creation And Assignment/i })).toBeVisible();
   await page.getByRole("button", { name: "Clear" }).first().click();
-  await expect(page.getByRole("button", { name: /ticket_creation_and_assignment/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Ticket Creation And Assignment/i })).toHaveCount(0);
   await page.getByLabel("Required features search").fill("automation");
-  await page.getByLabel("automation").check();
-  await expect(page.getByRole("button", { name: /automation/i })).toBeVisible();
+  await page.getByLabel("Automation").check();
+  await expect(page.getByRole("button", { name: /Automation/i })).toBeVisible();
 });
 
 test("runs analysis and renders cards, tabs, tables, and evidence", async ({ page }) => {

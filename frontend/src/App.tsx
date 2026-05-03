@@ -198,7 +198,7 @@ export default function App() {
               values={requiredFeatures}
               options={options.features.map((feature) => ({
                 value: feature.id,
-                label: feature.label,
+                label: readableFeatureLabel(feature.label),
                 badge: feature.review_derived ? "review" : "structured",
               }))}
               onChange={setRequiredFeatures}
@@ -582,6 +582,20 @@ function isMissing(value: CellValue): boolean {
 
 function titleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function readableFeatureLabel(value: string): string {
+  const reviewDerived = value.includes("(review-derived)");
+  const cleaned = value
+    .replace("(review-derived)", "")
+    .replace(/_/g, " ")
+    .trim()
+    .replace(/\bapi\b/gi, "API")
+    .replace(/\bsso\b/gi, "SSO")
+    .replace(/\bcrm\b/gi, "CRM")
+    .replace(/\bai\b/gi, "AI")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return reviewDerived ? `${cleaned} (review-derived)` : cleaned;
 }
 
 function tabLabel(tab: Tab, result: AnalysisResult): string {
