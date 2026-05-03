@@ -23,26 +23,91 @@ import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, DemoPreset,
 type Tab = "answer" | "scorecard" | "reviews" | "evidence";
 type CellValue = string | number | boolean | null | undefined;
 
-const emptyOptions: ApiOptions = {
-  categories: ["All"],
-  products: [],
-  features: [],
-  demo_presets: [],
+const fallbackOptions: ApiOptions = {
+  categories: ["All", "Crm", "Customer Support", "Password Managers", "Project Management", "Website Builders"],
+  products: ["Freshdesk", "HubSpot", "Pipedrive", "Salesforce", "Zendesk", "Zoho Desk"],
+  features: [
+    { id: "ticket_creation_and_assignment", label: "ticket_creation_and_assignment (review-derived)", review_derived: true },
+    { id: "reporting_and_analytics", label: "reporting_and_analytics (review-derived)", review_derived: true },
+    { id: "priority_and_sla_management", label: "priority_and_sla_management (review-derived)", review_derived: true },
+    { id: "customer_and_agent_portals", label: "customer_and_agent_portals (review-derived)", review_derived: true },
+    { id: "automation", label: "automation", review_derived: false },
+    { id: "workflow_builder", label: "workflow_builder", review_derived: false },
+    { id: "reporting_analytics", label: "reporting_analytics", review_derived: false },
+    { id: "api_integrations", label: "api_integrations", review_derived: false },
+    { id: "templates", label: "templates", review_derived: false },
+    { id: "api_access", label: "api_access", review_derived: false },
+    { id: "analytics", label: "analytics", review_derived: false },
+    { id: "seo_tools", label: "seo_tools", review_derived: false },
+    { id: "custom_domains", label: "custom_domains", review_derived: false },
+    { id: "sso_integration", label: "sso_integration", review_derived: false },
+    { id: "secure_sharing", label: "secure_sharing", review_derived: false },
+    { id: "2fa_mfa", label: "2fa_mfa", review_derived: false },
+    { id: "breach_alerts", label: "breach_alerts", review_derived: false },
+  ],
+  demo_presets: [
+    {
+      label: "Support desk review risk",
+      query: "Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.",
+      category: "Customer Support",
+      features: ["ticket_creation_and_assignment", "reporting_and_analytics"],
+      tools: ["Zendesk", "Zoho Desk", "Freshdesk"],
+      max_price: null,
+      top_k: 3,
+    },
+    {
+      label: "CRM under $30",
+      query: "Recommend a CRM for a small team that needs automation, workflow builder, reporting, and API integrations under $30.",
+      category: "Crm",
+      features: ["automation", "workflow_builder", "reporting_analytics", "api_integrations"],
+      tools: [],
+      max_price: 30,
+      top_k: 5,
+    },
+    {
+      label: "PM automation shortlist",
+      query: "Find affordable project management platforms with automation, reporting analytics, templates, and API integrations.",
+      category: "Project Management",
+      features: ["automation", "reporting_analytics", "templates", "api_integrations"],
+      tools: [],
+      max_price: 25,
+      top_k: 5,
+    },
+  ],
 };
 
+const fallbackStatus: ApiStatus = {
+  source: "Kaggle/local data",
+  source_notice: "Showing packaged demo counts while the API starts.",
+  product_count: 335,
+  review_count: 4899,
+  category_count: 29,
+  chroma: { ready: false, product_count: 335, review_count: 4899, status: "Connecting" },
+  llm: {
+    label: "Connecting",
+    available: false,
+    provider: "template",
+    model: "grounded-template",
+    status: "loading",
+    warning: "",
+  },
+};
+
+const initialPreset = fallbackOptions.demo_presets[0];
+
 export default function App() {
-  const [status, setStatus] = useState<ApiStatus | null>(null);
-  const [options, setOptions] = useState<ApiOptions>(emptyOptions);
+  const [status, setStatus] = useState<ApiStatus | null>(fallbackStatus);
+  const [options, setOptions] = useState<ApiOptions>(fallbackOptions);
   const [selectedPreset, setSelectedPreset] = useState(0);
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [applyBudget, setApplyBudget] = useState(false);
-  const [maxMonthlyPrice, setMaxMonthlyPrice] = useState<number | null>(null);
-  const [requiredFeatures, setRequiredFeatures] = useState<string[]>([]);
+  const [query, setQuery] = useState(initialPreset.query);
+  const [category, setCategory] = useState(initialPreset.category);
+  const [applyBudget, setApplyBudget] = useState(initialPreset.max_price !== null);
+  const [maxMonthlyPrice, setMaxMonthlyPrice] = useState<number | null>(initialPreset.max_price);
+  const [requiredFeatures, setRequiredFeatures] = useState<string[]>(initialPreset.features);
   const [additionalRequiredFeatures, setAdditionalRequiredFeatures] = useState("");
-  const [compareTools, setCompareTools] = useState<string[]>([]);
+  const [compareTools, setCompareTools] = useState<string[]>(initialPreset.tools);
   const [additionalToolNames, setAdditionalToolNames] = useState("");
-  const [topK, setTopK] = useState(5);
+  const [topK, setTopK] = useState(initialPreset.top_k);
   const [useLlm, setUseLlm] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("answer");
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -64,7 +129,6 @@ export default function App() {
     getOptions()
       .then((optionResult) => {
         setOptions(optionResult);
-        applyPreset(optionResult.demo_presets[0], optionResult);
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
