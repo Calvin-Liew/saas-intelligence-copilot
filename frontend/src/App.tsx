@@ -3,15 +3,18 @@ import {
   BarChart3,
   CheckCircle2,
   Database,
+  ExternalLink,
   FileSearch,
   Gauge,
   Layers3,
   Loader2,
+  RotateCcw,
   Search,
   Server,
   Sparkles,
+  X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { analyze, getOptions, getStatus } from "./api";
@@ -56,11 +59,6 @@ export default function App() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
-
-  const featureById = useMemo(
-    () => new Map(options.features.map((feature) => [feature.id, feature])),
-    [options.features],
-  );
 
   function applyPreset(preset: DemoPreset | undefined, optionState = options) {
     if (!preset) return;
@@ -126,9 +124,24 @@ export default function App() {
 
         <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
           <aside className="panel flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="panel-title">Analysis Setup</h2>
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={() => applyPreset(preset)}
+                disabled={!preset}
+                aria-label="Reset selected preset"
+              >
+                <RotateCcw size={16} />
+                Reset
+              </button>
+            </div>
+
             <label className="field">
               <span>Demo preset</span>
               <select
+                aria-label="Demo preset"
                 value={selectedPreset}
                 onChange={(event) => {
                   const nextIndex = Number(event.target.value);
@@ -146,7 +159,7 @@ export default function App() {
 
             <label className="field">
               <span>Category</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)}>
+              <select aria-label="Category" value={category} onChange={(event) => setCategory(event.target.value)}>
                 {options.categories.map((item) => (
                   <option key={item} value={item}>
                     {item}
@@ -160,8 +173,10 @@ export default function App() {
                 <span>Budget</span>
                 <input
                   type="number"
+                  aria-label="Max monthly price"
                   min="0"
                   step="5"
+                  placeholder="No limit"
                   value={maxMonthlyPrice ?? ""}
                   disabled={!applyBudget}
                   onChange={(event) => setMaxMonthlyPrice(event.target.value ? Number(event.target.value) : null)}
@@ -170,6 +185,7 @@ export default function App() {
               <label className="toggle">
                 <input
                   type="checkbox"
+                  aria-label="Apply budget"
                   checked={applyBudget}
                   onChange={(event) => setApplyBudget(event.target.checked)}
                 />
@@ -190,6 +206,8 @@ export default function App() {
             <label className="field">
               <span>Additional features</span>
               <input
+                aria-label="Additional features"
+                placeholder="Comma-separated terms"
                 value={additionalRequiredFeatures}
                 onChange={(event) => setAdditionalRequiredFeatures(event.target.value)}
               />
@@ -203,33 +221,57 @@ export default function App() {
             />
             <label className="field">
               <span>Additional tools</span>
-              <input value={additionalToolNames} onChange={(event) => setAdditionalToolNames(event.target.value)} />
+              <input
+                aria-label="Additional tools"
+                placeholder="Comma-separated names"
+                value={additionalToolNames}
+                onChange={(event) => setAdditionalToolNames(event.target.value)}
+              />
             </label>
 
             <div className="grid grid-cols-[1fr_120px] items-end gap-3">
               <label className="field">
                 <span>Results</span>
-                <input type="range" min="2" max="10" value={topK} onChange={(event) => setTopK(Number(event.target.value))} />
+                <input
+                  aria-label="Number of results"
+                  type="range"
+                  min="2"
+                  max="10"
+                  value={topK}
+                  onChange={(event) => setTopK(Number(event.target.value))}
+                />
               </label>
               <div className="counter">{topK}</div>
             </div>
 
             <label className="toggle">
-              <input type="checkbox" checked={useLlm} onChange={(event) => setUseLlm(event.target.checked)} />
+              <input
+                aria-label="Use LLM rewrite"
+                type="checkbox"
+                checked={useLlm}
+                onChange={(event) => setUseLlm(event.target.checked)}
+              />
               <span>LLM rewrite</span>
             </label>
 
-            <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
-              {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-              Run analysis
-            </button>
+            <div className="control-actions">
+              <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                {loading ? "Analyzing" : "Run analysis"}
+              </button>
+            </div>
           </aside>
 
           <section className="flex min-w-0 flex-col gap-4">
             <div className="panel">
               <label className="field">
                 <span>Analysis query</span>
-                <textarea value={query} onChange={(event) => setQuery(event.target.value)} rows={4} />
+                <textarea
+                  aria-label="Analysis query"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  rows={4}
+                />
               </label>
               {preset ? (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -262,8 +304,9 @@ export default function App() {
                         className={activeTab === tab ? "tab-active" : ""}
                         type="button"
                         onClick={() => setActiveTab(tab)}
+                        aria-pressed={activeTab === tab}
                       >
-                        {titleCase(tab)}
+                        {tabLabel(tab, result)}
                       </button>
                     ))}
                   </div>
@@ -283,6 +326,20 @@ export default function App() {
               <div className="empty-state">
                 <Search size={28} />
                 <span>Run analysis</span>
+                <div className="quick-presets">
+                  {options.demo_presets.slice(0, 3).map((item, index) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPreset(index);
+                        applyPreset(item);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -333,9 +390,10 @@ function MultiSelect({
   onChange: (values: string[]) => void;
 }) {
   const [filter, setFilter] = useState("");
+  const selected = options.filter((option) => values.includes(option.value));
   const visible = options
     .filter((option) => option.label.toLowerCase().includes(filter.toLowerCase()))
-    .slice(0, 80);
+    .slice(0, 60);
 
   function toggle(value: string) {
     onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
@@ -343,16 +401,38 @@ function MultiSelect({
 
   return (
     <div className="field">
-      <span>{label}</span>
-      <input value={filter} onChange={(event) => setFilter(event.target.value)} />
+      <div className="field-heading">
+        <span>{label}</span>
+        {values.length ? (
+          <button type="button" onClick={() => onChange([])}>
+            Clear
+          </button>
+        ) : null}
+      </div>
+      {selected.length ? (
+        <div className="selected-chips">
+          {selected.map((option) => (
+            <button key={option.value} type="button" onClick={() => toggle(option.value)}>
+              <span>{option.label}</span>
+              <X size={13} />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <input
+        aria-label={`${label} search`}
+        placeholder="Search"
+        value={filter}
+        onChange={(event) => setFilter(event.target.value)}
+      />
       <div className="multi-list">
-        {visible.map((option) => (
+        {visible.length ? visible.map((option) => (
           <label key={option.value} className="multi-option">
             <input type="checkbox" checked={values.includes(option.value)} onChange={() => toggle(option.value)} />
             <span>{option.label}</span>
             {option.badge ? <em>{option.badge}</em> : null}
           </label>
-        ))}
+        )) : <div className="multi-empty">No matches</div>}
       </div>
     </div>
   );
@@ -360,18 +440,48 @@ function MultiSelect({
 
 function AnswerView({ result }: { result: AnalysisResult }) {
   return (
-    <div className="answer-grid">
-      <article className="markdown">
-        <ReactMarkdown>{result.answer}</ReactMarkdown>
-      </article>
-      <aside className="side-panel">
-        <h2>Why This Ranking</h2>
-        <List items={result.ranking_explanation} />
-        <h2>Risks</h2>
-        <List items={result.risks} />
-        <h2>Next Checks</h2>
-        <List items={result.follow_up_questions} />
-      </aside>
+    <div className="flex flex-col gap-4">
+      <ToolCards rows={result.recommended_tools} />
+      <div className="answer-grid">
+        <article className="markdown">
+          <ReactMarkdown>{result.answer}</ReactMarkdown>
+        </article>
+        <aside className="side-panel">
+          <h2>Why This Ranking</h2>
+          <List items={result.ranking_explanation} />
+          <h2>Risks</h2>
+          <List items={result.risks} />
+          <h2>Next Checks</h2>
+          <List items={result.follow_up_questions} />
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function ToolCards({ rows }: { rows: Dict[] }) {
+  if (!rows.length) return null;
+  return (
+    <div className="tool-cards" aria-label="Recommended tools">
+      {rows.slice(0, 4).map((row) => (
+        <article key={String(row.Product)} className="tool-card">
+          <div>
+            <h2>{formatCell(row.Product)}</h2>
+            <p>{formatCell(row.Category)}</p>
+          </div>
+          <strong>{formatCell(row.Score)}</strong>
+          <dl>
+            <div>
+              <dt>Pricing</dt>
+              <dd>{formatCell(row["Pricing Source"])}</dd>
+            </div>
+            <div>
+              <dt>Evidence</dt>
+              <dd>{formatCell(row["Feature Evidence Quality"])}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
     </div>
   );
 }
@@ -414,7 +524,7 @@ function Table({ rows }: { rows: Dict[] }) {
             <tr key={rowIndex}>
               {columns.map((column) => (
                 <td key={column} className={isMissing(row[column]) ? "missing-cell" : ""}>
-                  {formatCell(row[column])}
+                  {renderCell(row[column])}
                 </td>
               ))}
             </tr>
@@ -446,6 +556,19 @@ function formatCell(value: CellValue): string {
   return String(value);
 }
 
+function renderCell(value: CellValue): ReactNode {
+  const text = formatCell(value);
+  if (text.startsWith("http://") || text.startsWith("https://")) {
+    const firstUrl = text.split(";")[0].trim();
+    return (
+      <a className="table-link" href={firstUrl} target="_blank" rel="noreferrer">
+        Source <ExternalLink size={13} />
+      </a>
+    );
+  }
+  return text;
+}
+
 function isMissing(value: CellValue): boolean {
   const text = formatCell(value).toLowerCase();
   return (
@@ -459,4 +582,11 @@ function isMissing(value: CellValue): boolean {
 
 function titleCase(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function tabLabel(tab: Tab, result: AnalysisResult): string {
+  if (tab === "scorecard") return `Scorecard (${result.comparison_table.length})`;
+  if (tab === "reviews") return `Reviews (${result.review_themes.length})`;
+  if (tab === "evidence") return `Evidence (${result.evidence_snippets.length})`;
+  return "Answer";
 }

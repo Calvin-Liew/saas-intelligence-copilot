@@ -210,6 +210,16 @@ Netlify frontend:
 - publish directory: `frontend/dist`
 - required env var: `VITE_API_BASE_URL=https://<render-api>.onrender.com`
 
+Frontend verification:
+
+```powershell
+cd frontend
+npm run typecheck
+npm test
+npm run test:e2e
+npm run build
+```
+
 Set the frontend API URL after the Render backend is live:
 
 ```powershell
