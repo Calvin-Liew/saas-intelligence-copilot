@@ -73,14 +73,6 @@ input[type="number"],
     @apply inline-flex h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300;
   }
 
-  .control-actions {
-    @apply sticky bottom-3 z-20 rounded-lg bg-white pt-1;
-  }
-
-  .control-actions .primary-button {
-    @apply w-full;
-  }
-
   .status-pill {
     @apply flex min-h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-xs shadow-sm;
   }
@@ -148,6 +140,14 @@ input[type="number"],
 
   .counter {
     @apply flex h-10 items-center justify-center rounded-md border border-line bg-white text-sm font-semibold text-ink;
+  }
+
+  .query-actions {
+    @apply mt-4 flex justify-end;
+  }
+
+  .query-actions .primary-button {
+    @apply w-full sm:w-auto;
   }
 
   .tabs {

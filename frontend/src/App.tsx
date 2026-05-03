@@ -14,7 +14,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { analyze, getOptions, getStatus } from "./api";
@@ -48,6 +48,10 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const featureLabelById = useMemo(
+    () => new Map(options.features.map((feature) => [feature.id, readableFeatureLabel(feature.label)])),
+    [options.features],
+  );
 
   useEffect(() => {
     Promise.all([getStatus(), getOptions()])
@@ -123,7 +127,7 @@ export default function App() {
         {result?.llm.warning ? <Notice tone="warn">{result.llm.warning}</Notice> : null}
 
         <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
-          <aside className="panel flex flex-col gap-4">
+          <aside className="panel order-2 flex flex-col gap-4 lg:order-1">
             <div className="flex items-center justify-between gap-3">
               <h2 className="panel-title">Analysis Setup</h2>
               <button
@@ -199,7 +203,7 @@ export default function App() {
               options={options.features.map((feature) => ({
                 value: feature.id,
                 label: readableFeatureLabel(feature.label),
-                badge: feature.review_derived ? "review" : "structured",
+                badge: feature.review_derived ? "review-derived" : "structured",
               }))}
               onChange={setRequiredFeatures}
             />
@@ -254,15 +258,9 @@ export default function App() {
               <span>LLM rewrite</span>
             </label>
 
-            <div className="control-actions">
-              <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                {loading ? "Analyzing" : "Run analysis"}
-              </button>
-            </div>
           </aside>
 
-          <section className="flex min-w-0 flex-col gap-4">
+          <section className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
             <div className="panel">
               <label className="field">
                 <span>Analysis query</span>
@@ -277,11 +275,20 @@ export default function App() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge>{preset.category}</Badge>
                   {preset.max_price !== null ? <Badge>${preset.max_price}/mo max</Badge> : null}
+                  {requiredFeatures.map((feature) => (
+                    <Badge key={feature}>{featureLabelById.get(feature) ?? readableFeatureLabel(feature)}</Badge>
+                  ))}
                   {preset.tools.map((tool) => (
                     <Badge key={tool}>{tool}</Badge>
                   ))}
                 </div>
               ) : null}
+              <div className="query-actions">
+                <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                  {loading ? "Analyzing" : "Run analysis"}
+                </button>
+              </div>
             </div>
 
             {result ? (
@@ -635,7 +642,7 @@ function readableFeatureLabel(value: string): string {
     words.push(specialCases[parts[index]] ?? titleCase(parts[index]));
   }
 
-  const cleaned = words.join(" ");
+  const cleaned = words.join(" ").replace(/\b(And|Or|For|With|Of|To|In|By)\b/g, (word) => word.toLowerCase());
   return reviewDerived ? `${cleaned} (review-derived)` : cleaned;
 }
 

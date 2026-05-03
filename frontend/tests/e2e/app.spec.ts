@@ -139,9 +139,9 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
 test("shows selected chips and can clear feature selections", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("button", { name: /Ticket Creation And Assignment/i })).toBeVisible();
+  await expect(page.getByText(/Ticket Creation and Assignment/i).first()).toBeVisible();
   await page.getByRole("button", { name: "Clear" }).first().click();
-  await expect(page.getByRole("button", { name: /Ticket Creation And Assignment/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Ticket Creation and Assignment/i })).toHaveCount(0);
   await page.getByLabel("Required features search").fill("automation");
   await page.getByLabel("Automation").check();
   await expect(page.getByRole("button", { name: /Automation/i })).toBeVisible();
