@@ -116,7 +116,39 @@ input[type="number"],
   }
 
   .panel-title {
-    @apply text-sm font-semibold text-ink;
+    @apply text-base font-semibold text-ink;
+  }
+
+  .panel-kicker {
+    @apply text-xs font-semibold uppercase tracking-wide text-accent;
+  }
+
+  .setup-panel {
+    @apply flex flex-col gap-4;
+  }
+
+  .setup-panel-header {
+    @apply flex items-start justify-between gap-3;
+  }
+
+  .setup-section {
+    @apply border-t border-line pt-4;
+  }
+
+  .setup-section-header {
+    @apply mb-3 flex items-center justify-between gap-3;
+  }
+
+  .setup-section-header h3 {
+    @apply text-xs font-semibold uppercase tracking-wide text-ink;
+  }
+
+  .setup-section-header span {
+    @apply shrink-0 rounded-full border border-accent/15 bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent;
+  }
+
+  .setup-section-body {
+    @apply grid gap-3;
   }
 
   .field {
@@ -124,12 +156,20 @@ input[type="number"],
   }
 
   .field > span,
-  .field-heading > span {
+  .field-heading span {
     @apply text-xs font-semibold uppercase tracking-wide text-muted;
   }
 
   .field-heading {
     @apply flex min-h-5 items-center justify-between gap-2;
+  }
+
+  .field-heading > div {
+    @apply grid gap-0.5;
+  }
+
+  .field-heading small {
+    @apply text-xs font-medium text-muted;
   }
 
   .field-heading button,
@@ -205,11 +245,11 @@ input[type="number"],
   }
 
   .selected-chips {
-    @apply flex max-h-24 flex-wrap gap-1 overflow-auto;
+    @apply flex max-h-24 flex-wrap gap-1.5 overflow-auto;
   }
 
   .selected-chips button {
-    @apply inline-flex max-w-full items-center gap-1 rounded-full border border-accent/20 bg-accent/10 px-2 py-1 text-xs font-medium text-accent;
+    @apply inline-flex max-w-full items-center gap-1 rounded-full border border-accent/20 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent transition hover:border-accent/30 hover:bg-accent/15;
   }
 
   .selected-chips span {
@@ -228,6 +268,26 @@ input[type="number"],
     @apply rounded bg-panel px-1.5 py-0.5 text-[11px] not-italic text-muted;
   }
 
+  .multi-option em[data-kind="structured"] {
+    @apply bg-accent/10 text-accent;
+  }
+
+  .multi-option em[data-kind="review-derived"] {
+    @apply bg-signal/10 text-signal;
+  }
+
+  .picker-search {
+    @apply relative;
+  }
+
+  .picker-search svg {
+    @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-signal;
+  }
+
+  .picker-search input {
+    @apply pl-9;
+  }
+
   .multi-empty {
     @apply px-3 py-6 text-center text-sm text-muted;
   }
@@ -236,12 +296,56 @@ input[type="number"],
     @apply flex h-10 items-center justify-center rounded-ds border border-line bg-surface text-sm font-semibold text-ink;
   }
 
+  .query-panel {
+    @apply grid gap-4;
+  }
+
+  .query-panel-header {
+    @apply flex flex-col justify-between gap-3 border-b border-line pb-4 sm:flex-row sm:items-start;
+  }
+
+  .query-panel-header h2 {
+    @apply mt-1 text-lg font-semibold text-ink;
+  }
+
+  .query-panel-header p {
+    @apply mt-1 text-sm text-muted;
+  }
+
+  .query-panel-header .primary-button {
+    @apply hidden shrink-0 sm:inline-flex;
+  }
+
+  .query-field textarea {
+    @apply min-h-36 resize-y text-base leading-6;
+  }
+
+  .query-footer {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between;
+  }
+
+  .active-setup {
+    @apply min-w-0 flex-1;
+  }
+
+  .active-setup > span {
+    @apply mb-2 block text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+
+  .setup-chip-row {
+    @apply flex max-h-24 flex-wrap gap-2 overflow-auto;
+  }
+
   .query-actions {
     @apply mt-4 flex justify-end;
   }
 
   .query-actions .primary-button {
     @apply w-full sm:w-auto;
+  }
+
+  .query-run-secondary {
+    @apply order-first w-full sm:hidden;
   }
 
   .tabs {

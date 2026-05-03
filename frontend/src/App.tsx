@@ -174,6 +174,16 @@ export default function App() {
   }
 
   const preset = options.demo_presets[selectedPreset];
+  const activeSetupChips = [
+    category && category !== "All" ? category : "All categories",
+    applyBudget && maxMonthlyPrice !== null ? `$${maxMonthlyPrice}/mo max` : "No budget limit",
+    ...requiredFeatures.map((feature) => featureLabelById.get(feature) ?? readableFeatureLabel(feature)),
+    ...(additionalRequiredFeatures.trim() ? [additionalRequiredFeatures.trim()] : []),
+    ...compareTools,
+    ...(additionalToolNames.trim() ? [additionalToolNames.trim()] : []),
+    `${topK} results`,
+    useLlm ? "LLM rewrite" : "Template answer",
+  ];
 
   return (
     <main className="min-h-screen bg-canvas text-ink">
@@ -203,9 +213,12 @@ export default function App() {
         {result?.llm.warning ? <Notice tone="warn">{result.llm.warning}</Notice> : null}
 
         <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
-          <aside className="panel order-2 flex flex-col gap-4 lg:order-1">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="panel-title">Analysis Setup</h2>
+          <aside className="panel setup-panel order-2 lg:order-1" aria-label="Configure Analysis">
+            <div className="setup-panel-header">
+              <div>
+                <span className="panel-kicker">Workspace</span>
+                <h2 className="panel-title">Configure Analysis</h2>
+              </div>
               <button
                 className="ghost-button"
                 type="button"
@@ -218,149 +231,165 @@ export default function App() {
               </button>
             </div>
 
-            <label className="field">
-              <span>Demo preset</span>
-              <select
-                aria-label="Demo preset"
-                value={selectedPreset}
-                onChange={(event) => {
-                  const nextIndex = Number(event.target.value);
-                  setSelectedPreset(nextIndex);
-                  applyPreset(options.demo_presets[nextIndex]);
-                }}
-              >
-                {options.demo_presets.map((item, index) => (
-                  <option key={item.label} value={index}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Category</span>
-              <select aria-label="Category" value={category} onChange={(event) => setCategory(event.target.value)}>
-                {options.categories.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="grid grid-cols-[1fr_120px] items-end gap-3">
+            <SetupSection title="Scenario" meta={preset?.label ?? "Custom setup"}>
               <label className="field">
-                <span>Budget</span>
+                <span>Demo preset</span>
+                <select
+                  aria-label="Demo preset"
+                  value={selectedPreset}
+                  onChange={(event) => {
+                    const nextIndex = Number(event.target.value);
+                    setSelectedPreset(nextIndex);
+                    applyPreset(options.demo_presets[nextIndex]);
+                  }}
+                >
+                  {options.demo_presets.map((item, index) => (
+                    <option key={item.label} value={index}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                <span>Category</span>
+                <select aria-label="Category" value={category} onChange={(event) => setCategory(event.target.value)}>
+                  {options.categories.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="grid grid-cols-[1fr_120px] items-end gap-3">
+                <label className="field">
+                  <span>Budget</span>
+                  <input
+                    type="number"
+                    aria-label="Max monthly price"
+                    min="0"
+                    step="5"
+                    placeholder="No limit"
+                    value={maxMonthlyPrice ?? ""}
+                    disabled={!applyBudget}
+                    onChange={(event) => setMaxMonthlyPrice(event.target.value ? Number(event.target.value) : null)}
+                  />
+                </label>
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    aria-label="Apply budget"
+                    checked={applyBudget}
+                    onChange={(event) => setApplyBudget(event.target.checked)}
+                  />
+                  <span>Apply</span>
+                </label>
+              </div>
+            </SetupSection>
+
+            <SetupSection title="Evidence Requirements" meta={`${requiredFeatures.length} selected`}>
+              <MultiSelect
+                label="Required features"
+                values={requiredFeatures}
+                options={options.features.map((feature) => ({
+                  value: feature.id,
+                  label: readableFeatureLabel(feature.label),
+                  badge: feature.review_derived ? "review-derived" : "structured",
+                }))}
+                onChange={setRequiredFeatures}
+              />
+              <label className="field">
+                <span>Additional features</span>
                 <input
-                  type="number"
-                  aria-label="Max monthly price"
-                  min="0"
-                  step="5"
-                  placeholder="No limit"
-                  value={maxMonthlyPrice ?? ""}
-                  disabled={!applyBudget}
-                  onChange={(event) => setMaxMonthlyPrice(event.target.value ? Number(event.target.value) : null)}
+                  aria-label="Additional features"
+                  placeholder="Comma-separated terms"
+                  value={additionalRequiredFeatures}
+                  onChange={(event) => setAdditionalRequiredFeatures(event.target.value)}
                 />
               </label>
+            </SetupSection>
+
+            <SetupSection title="Comparison Set" meta={`${compareTools.length} tools`}>
+              <MultiSelect
+                label="Tools to compare"
+                values={compareTools}
+                options={options.products.map((product) => ({ value: product, label: product }))}
+                onChange={setCompareTools}
+              />
+              <label className="field">
+                <span>Additional tools</span>
+                <input
+                  aria-label="Additional tools"
+                  placeholder="Comma-separated names"
+                  value={additionalToolNames}
+                  onChange={(event) => setAdditionalToolNames(event.target.value)}
+                />
+              </label>
+            </SetupSection>
+
+            <SetupSection title="Run Settings" meta={`${topK} results`}>
+              <div className="grid grid-cols-[1fr_120px] items-end gap-3">
+                <label className="field">
+                  <span>Results</span>
+                  <input
+                    aria-label="Number of results"
+                    type="range"
+                    min="2"
+                    max="10"
+                    value={topK}
+                    onChange={(event) => setTopK(Number(event.target.value))}
+                  />
+                </label>
+                <div className="counter">{topK}</div>
+              </div>
+
               <label className="toggle">
                 <input
                   type="checkbox"
-                  aria-label="Apply budget"
-                  checked={applyBudget}
-                  onChange={(event) => setApplyBudget(event.target.checked)}
+                  aria-label="Use LLM rewrite"
+                  checked={useLlm}
+                  onChange={(event) => setUseLlm(event.target.checked)}
                 />
-                <span>Apply</span>
+                <span>LLM rewrite</span>
               </label>
-            </div>
-
-            <MultiSelect
-              label="Required features"
-              values={requiredFeatures}
-              options={options.features.map((feature) => ({
-                value: feature.id,
-                label: readableFeatureLabel(feature.label),
-                badge: feature.review_derived ? "review-derived" : "structured",
-              }))}
-              onChange={setRequiredFeatures}
-            />
-            <label className="field">
-              <span>Additional features</span>
-              <input
-                aria-label="Additional features"
-                placeholder="Comma-separated terms"
-                value={additionalRequiredFeatures}
-                onChange={(event) => setAdditionalRequiredFeatures(event.target.value)}
-              />
-            </label>
-
-            <MultiSelect
-              label="Tools to compare"
-              values={compareTools}
-              options={options.products.map((product) => ({ value: product, label: product }))}
-              onChange={setCompareTools}
-            />
-            <label className="field">
-              <span>Additional tools</span>
-              <input
-                aria-label="Additional tools"
-                placeholder="Comma-separated names"
-                value={additionalToolNames}
-                onChange={(event) => setAdditionalToolNames(event.target.value)}
-              />
-            </label>
-
-            <div className="grid grid-cols-[1fr_120px] items-end gap-3">
-              <label className="field">
-                <span>Results</span>
-                <input
-                  aria-label="Number of results"
-                  type="range"
-                  min="2"
-                  max="10"
-                  value={topK}
-                  onChange={(event) => setTopK(Number(event.target.value))}
-                />
-              </label>
-              <div className="counter">{topK}</div>
-            </div>
-
-            <label className="toggle">
-              <input
-                aria-label="Use LLM rewrite"
-                type="checkbox"
-                checked={useLlm}
-                onChange={(event) => setUseLlm(event.target.checked)}
-              />
-              <span>LLM rewrite</span>
-            </label>
-
+            </SetupSection>
           </aside>
 
           <section className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
-            <div className="panel">
-              <label className="field">
+            <div className="panel query-panel">
+              <div className="query-panel-header">
+                <div>
+                  <span className="panel-kicker">Ask the copilot</span>
+                  <h2>Describe the evaluation</h2>
+                  <p>Use natural language, then refine the analysis with the setup controls.</p>
+                </div>
+                <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
+                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
+                  {loading ? "Analyzing" : "Run analysis"}
+                </button>
+              </div>
+
+              <label className="field query-field">
                 <span>Analysis query</span>
                 <textarea
                   aria-label="Analysis query"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  rows={4}
+                  rows={5}
                 />
               </label>
-              {preset ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge>{preset.category}</Badge>
-                  {preset.max_price !== null ? <Badge>${preset.max_price}/mo max</Badge> : null}
-                  {requiredFeatures.map((feature) => (
-                    <Badge key={feature}>{featureLabelById.get(feature) ?? readableFeatureLabel(feature)}</Badge>
-                  ))}
-                  {preset.tools.map((tool) => (
-                    <Badge key={tool}>{tool}</Badge>
-                  ))}
+
+              <div className="query-footer">
+                <div className="active-setup">
+                  <span>Active setup</span>
+                  <div className="setup-chip-row">
+                    {activeSetupChips.map((chip) => (
+                      <Badge key={chip}>{chip}</Badge>
+                    ))}
+                  </div>
                 </div>
-              ) : null}
-              <div className="query-actions">
-                <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
+                <button className="primary-button query-run-secondary" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
                   {loading ? "Analyzing" : "Run analysis"}
                 </button>
@@ -491,6 +520,18 @@ function StatusPill({ icon, label, value }: { icon: ReactNode; label: string; va
   );
 }
 
+function SetupSection({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {
+  return (
+    <section className="setup-section">
+      <div className="setup-section-header">
+        <h3>{title}</h3>
+        <span>{meta}</span>
+      </div>
+      <div className="setup-section-body">{children}</div>
+    </section>
+  );
+}
+
 function Metric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="metric">
@@ -534,7 +575,10 @@ function MultiSelect({
   return (
     <div className="field">
       <div className="field-heading">
-        <span>{label}</span>
+        <div>
+          <span>{label}</span>
+          <small>{values.length ? `${values.length} selected` : "None selected"}</small>
+        </div>
         {values.length ? (
           <button type="button" onClick={() => onChange([])}>
             Clear
@@ -551,20 +595,23 @@ function MultiSelect({
           ))}
         </div>
       ) : null}
-      <input
-        aria-label={`${label} search`}
-        placeholder="Search"
-        value={filter}
-        onChange={(event) => setFilter(event.target.value)}
-      />
+      <div className="picker-search">
+        <Search size={15} />
+        <input
+          aria-label={`${label} search`}
+          placeholder={`Search ${label.toLowerCase()}`}
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+        />
+      </div>
       <div className="multi-list">
         {visible.length ? visible.map((option) => (
           <label key={option.value} className="multi-option">
             <input type="checkbox" checked={values.includes(option.value)} onChange={() => toggle(option.value)} />
             <span>{option.label}</span>
-            {option.badge ? <em>{option.badge}</em> : null}
+            {option.badge ? <em data-kind={option.badge}>{option.badge}</em> : null}
           </label>
-        )) : <div className="multi-empty">No matches</div>}
+        )) : <div className="multi-empty">No matches. Try another term.</div>}
       </div>
     </div>
   );

@@ -152,6 +152,15 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByText("Products")).toBeVisible();
   await expect(page.getByText("335", { exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
+  await expect(page.getByText("Scenario")).toBeVisible();
+  await expect(page.getByText("Evidence Requirements")).toBeVisible();
+  await expect(page.getByText("Comparison Set")).toBeVisible();
+  await expect(page.getByText("Run Settings")).toBeVisible();
+  await expect(page.getByText("Describe the evaluation")).toBeVisible();
+  await expect(page.getByText("Active setup")).toBeVisible();
+  await expect(page.getByText("2 selected").first()).toBeVisible();
+  await expect(page.getByText("3 tools")).toBeVisible();
   await expect(page.getByLabel("Analysis query")).toHaveValue(/Compare Zendesk/);
   await expect(page.getByRole("button", { name: /Run analysis/i })).toBeEnabled();
 });
@@ -210,6 +219,31 @@ test("runs analysis and renders cards, tabs, tables, and evidence", async ({ pag
 
   await page.getByRole("button", { name: "Evidence (1)" }).click();
   await expect(page.getByText("easy ticketing")).toBeVisible();
+});
+
+test("posts the unchanged analyze payload contract", async ({ page }) => {
+  const postedPayloads: unknown[] = [];
+  page.on("request", (request) => {
+    if (request.url() === "https://ui-test-api.local/api/analyze") {
+      postedPayloads.push(request.postDataJSON());
+    }
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /Run analysis/i }).click();
+
+  await expect.poll(() => postedPayloads.length).toBe(1);
+  expect(postedPayloads[0]).toEqual({
+    query: "Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.",
+    category: "Customer Support",
+    max_monthly_price: null,
+    required_features: ["ticket_creation_and_assignment", "reporting_and_analytics"],
+    additional_required_features: "",
+    compare_tools: ["Zendesk", "Zoho Desk", "Freshdesk"],
+    additional_tool_names: "",
+    top_k: 3,
+    use_llm: true,
+  });
 });
 
 test("mobile layout avoids page-level horizontal overflow", async ({ page, isMobile }) => {
