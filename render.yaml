@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: saas-intelligence-copilot-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: PYTHONPATH=src uvicorn saas_copilot.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_MODEL
+        value: qwen/qwen3-32b
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: USE_CHROMA
+        value: "1"
+      - key: PRODUCTION_MODE
+        value: "1"
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DATA_ARTIFACT_URL
+        sync: false

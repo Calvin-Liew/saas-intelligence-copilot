@@ -1,0 +1,16 @@
+query,category,required_features,compare_tools,max_monthly_price,top_k
+"Find affordable project management tools with automation and reporting.",Project Management,"automation, reporting",,25,5
+"Compare Notion, ClickUp, and Jira.",Project Management,,"Notion, ClickUp, Jira",,3
+"Which tools have SSO, analytics, API access, and automation?",All,"sso, analytics, api, automation",,,5
+"What do users complain about most for Zendesk?",Customer Support,,Zendesk,,3
+"Recommend a CRM for a small team with automation and reporting.",Crm,"automation, reporting",,25,5
+"Find website builders with API access, analytics, and templates.",Website Builders,"api access, analytics, templates",,,5
+"Compare Salesforce, HubSpot, and Pipedrive.",Crm,,"Salesforce, HubSpot, Pipedrive",,3
+"Create a recommendation memo for choosing a customer support platform for a 200-person company.",Customer Support,,,,5
+"Which products have workflow builder support?",All,"workflow builder",,,5
+"Find products with AI features and integrations.",All,"ai features, integrations",,,5
+"Recommend a password manager with SSO and advanced security.",Password Managers,"sso, advanced security, 2fa",,,5
+"Show project management platforms under $15 with automation.",Project Management,"automation",,15,5
+"Which CRM products are missing required SSO?",Crm,"sso",,,5
+"Summarize review risks for ServiceNow.",Customer Support,,ServiceNow,,3
+"Find tools with reporting, collaboration, and API access.",All,"reporting, collaboration, api",,,5
