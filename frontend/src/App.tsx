@@ -586,15 +586,56 @@ function titleCase(value: string): string {
 
 function readableFeatureLabel(value: string): string {
   const reviewDerived = value.includes("(review-derived)");
-  const cleaned = value
-    .replace("(review-derived)", "")
-    .replace(/_/g, " ")
-    .trim()
-    .replace(/\bapi\b/gi, "API")
-    .replace(/\bsso\b/gi, "SSO")
-    .replace(/\bcrm\b/gi, "CRM")
-    .replace(/\bai\b/gi, "AI")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  const base = value.replace("(review-derived)", "").trim().toLowerCase();
+  const specialCases: Record<string, string> = {
+    "24_7": "24/7",
+    "2fa_mfa": "2FA/MFA",
+    "a_b_testing": "A/B Testing",
+    "api": "API",
+    "crm": "CRM",
+    "sso": "SSO",
+    "ai": "AI",
+    "sdk": "SDK",
+    "ui": "UI",
+    "ux": "UX",
+    "url": "URL",
+    "vpn": "VPN",
+    "ssl": "SSL",
+    "saml": "SAML",
+    "oauth": "OAuth",
+    "gdpr": "GDPR",
+    "hipaa": "HIPAA",
+    "soc": "SOC",
+    "sla": "SLA",
+    "mfa": "MFA",
+    "2fa": "2FA",
+    "3d": "3D",
+    "4k": "4K",
+  };
+  const phrase = base
+    .replace(/^24_7(?=_|$)/, "24_7")
+    .replace(/^2fa_mfa(?=_|$)/, "2fa_mfa")
+    .replace(/^a_b_testing(?=_|$)/, "a_b_testing");
+  const words: string[] = [];
+  const parts = phrase.split("_").filter(Boolean);
+
+  for (let index = 0; index < parts.length; index += 1) {
+    const twoPart = `${parts[index]}_${parts[index + 1] ?? ""}`;
+    const threePart = `${parts[index]}_${parts[index + 1] ?? ""}_${parts[index + 2] ?? ""}`;
+    if (specialCases[threePart]) {
+      words.push(specialCases[threePart]);
+      index += 2;
+      continue;
+    }
+    if (specialCases[twoPart]) {
+      words.push(specialCases[twoPart]);
+      index += 1;
+      continue;
+    }
+    words.push(specialCases[parts[index]] ?? titleCase(parts[index]));
+  }
+
+  const cleaned = words.join(" ");
   return reviewDerived ? `${cleaned} (review-derived)` : cleaned;
 }
 

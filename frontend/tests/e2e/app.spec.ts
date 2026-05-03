@@ -21,6 +21,10 @@ const optionsResponse = {
   categories: ["All", "Customer Support", "Project Management", "Crm"],
   products: ["Freshdesk", "Zendesk", "Zoho Desk", "Asana", "HubSpot CRM"],
   features: [
+    { id: "24_7_support", label: "24_7_support", review_derived: false },
+    { id: "2fa_mfa", label: "2fa_mfa", review_derived: false },
+    { id: "a_b_testing", label: "a_b_testing", review_derived: false },
+    { id: "api_sdk", label: "api_sdk", review_derived: false },
     { id: "automation", label: "automation", review_derived: false },
     { id: "reporting", label: "reporting", review_derived: false },
     {
@@ -141,6 +145,20 @@ test("shows selected chips and can clear feature selections", async ({ page }) =
   await page.getByLabel("Required features search").fill("automation");
   await page.getByLabel("Automation").check();
   await expect(page.getByRole("button", { name: /Automation/i })).toBeVisible();
+});
+
+test("renders required feature labels as readable product language", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Required features search").fill("24");
+  await expect(page.getByText("24/7 Support")).toBeVisible();
+
+  await page.getByLabel("Required features search").fill("2fa");
+  await expect(page.getByText("2FA/MFA")).toBeVisible();
+
+  await page.getByLabel("Required features search").fill("api sdk");
+  await expect(page.getByText("API SDK")).toBeVisible();
+  await expect(page.getByText("api_sdk")).toHaveCount(0);
 });
 
 test("runs analysis and renders cards, tabs, tables, and evidence", async ({ page }) => {
