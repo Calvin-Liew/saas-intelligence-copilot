@@ -1,10 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SaaS Intelligence Copilot">
-  <rect width="64" height="64" rx="14" fill="#172033"/>
-  <path d="M13 18h38M13 32h38M13 46h38M20 12v40M34 12v40M48 12v40" stroke="#2a3448" stroke-width="1.5"/>
-  <path d="M14 44h34" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="18" cy="44" r="3" fill="#ffffff"/>
-  <circle cx="33" cy="44" r="3" fill="#2563eb"/>
-  <circle cx="48" cy="44" r="3" fill="#2dd4bf"/>
-  <path d="M41 24l5 5 9-11" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="14" y="36" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">SI</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="SaaS Intelligence Copilot">
+  <rect x="3" y="3" width="66" height="66" rx="16" fill="#172033"/>
+  <path d="M15 20h42M15 34h42M15 48h42M22 14v44M36 14v44M50 14v44" stroke="#314056" stroke-width="1.5"/>
+  <path d="M14 52h44" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.75"/>
+  <path d="M14 49c9-8 17-9 25-3 7 5 13 5 20-5" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="16" cy="49" r="4" fill="#ffffff"/>
+  <circle cx="38" cy="46" r="4" fill="#2563eb"/>
+  <circle cx="59" cy="41" r="4" fill="#2dd4bf"/>
+  <path d="M43 24l5 5 10-13" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="15" y="41" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="850">SI</text>
 </svg>

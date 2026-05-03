@@ -56,45 +56,13 @@ input[type="number"],
     @apply flex min-w-0 items-center gap-3;
   }
 
-  .brand-mark {
-    @apply relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink text-white shadow-soft ring-1 ring-white/40;
+  .brand-logo {
+    filter: drop-shadow(0 12px 18px rgba(23, 32, 51, 0.18));
+    @apply h-14 w-14 shrink-0;
   }
 
-  .brand-mark::before {
-    content: "";
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.13) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
-    background-size: 12px 12px;
-    @apply absolute inset-0 opacity-45;
-  }
-
-  .brand-mark span {
-    @apply relative z-10 text-base font-black;
-  }
-
-  .brand-mark::after {
-    content: "";
-    @apply absolute bottom-2.5 left-3 right-3 h-1 rounded-full bg-teal;
-  }
-
-  .brand-mark i {
-    @apply absolute right-2 top-2 z-10 h-2 w-3 rotate-[-45deg] border-b-[3px] border-l-[3px] border-teal;
-  }
-
-  .brand-mark b {
-    box-shadow:
-      15px 0 0 #2563eb,
-      30px 0 0 #2dd4bf;
-    @apply absolute bottom-2 left-3 z-10 h-1.5 w-1.5 rounded-full bg-white;
-  }
-
-  .brand-mark-small {
-    @apply h-10 w-10;
-  }
-
-  .brand-mark-small span {
-    @apply text-sm;
+  .brand-logo-small {
+    @apply h-11 w-11;
   }
 
   .brand-copy {

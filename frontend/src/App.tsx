@@ -111,11 +111,7 @@ export default function App() {
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
         <header className="app-header">
           <div className="brand-lockup">
-            <div className="brand-mark" aria-hidden="true">
-              <span>SI</span>
-              <i />
-              <b />
-            </div>
+            <BrandMark />
             <div className="brand-copy">
               <div className="brand-eyebrow">
                 <span>Enterprise software evaluation</span>
@@ -342,11 +338,7 @@ export default function App() {
               </>
             ) : (
               <div className="empty-state">
-                <div className="brand-mark brand-mark-small" aria-hidden="true">
-                  <span>SI</span>
-                  <i />
-                  <b />
-                </div>
+                <BrandMark compact />
                 <span>Run analysis</span>
                 <p>Try a showcase query</p>
                 <div className="quick-presets">
@@ -369,6 +361,46 @@ export default function App() {
         </section>
       </div>
     </main>
+  );
+}
+
+function BrandMark({ compact = false }: { compact?: boolean }) {
+  return (
+    <svg
+      className={compact ? "brand-logo brand-logo-small" : "brand-logo"}
+      viewBox="0 0 72 72"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="3" y="3" width="66" height="66" rx="16" fill="#172033" />
+      <path
+        d="M15 20h42M15 34h42M15 48h42M22 14v44M36 14v44M50 14v44"
+        stroke="#314056"
+        strokeWidth="1.5"
+      />
+      <path d="M14 52h44" stroke="#2563eb" strokeWidth="5" strokeLinecap="round" opacity="0.75" />
+      <path
+        d="M14 49c9-8 17-9 25-3 7 5 13 5 20-5"
+        fill="none"
+        stroke="#2dd4bf"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <circle cx="16" cy="49" r="4" fill="#ffffff" />
+      <circle cx="38" cy="46" r="4" fill="#2563eb" />
+      <circle cx="59" cy="41" r="4" fill="#2dd4bf" />
+      <path
+        d="M43 24l5 5 10-13"
+        fill="none"
+        stroke="#2dd4bf"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <text x="15" y="41" fill="#ffffff" fontFamily="Inter, Arial, sans-serif" fontSize="22" fontWeight="850">
+        SI
+      </text>
+    </svg>
   );
 }
 
