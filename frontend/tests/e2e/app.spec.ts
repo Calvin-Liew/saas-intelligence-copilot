@@ -146,6 +146,8 @@ test.beforeEach(async ({ page }) => {
 test("loads status and exposes the primary analysis controls", async ({ page }) => {
   await page.goto("/");
 
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeHidden({ timeout: 4000 });
   await expect(page.getByRole("heading", { name: "SaaSScout" })).toBeVisible();
   await expect(page.getByText("Scout smarter SaaS decisions across pricing, features, and reviews.")).toBeVisible();
   await expect(page.getByText("Live RAG Demo")).toBeVisible();

@@ -22,6 +22,8 @@ import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, DemoPreset,
 
 type Tab = "answer" | "scorecard" | "reviews" | "evidence";
 type CellValue = string | number | boolean | null | undefined;
+const SPLASH_MIN_MS = 950;
+const SPLASH_MAX_MS = 2400;
 
 const fallbackOptions: ApiOptions = {
   categories: ["All", "Crm", "Customer Support", "Password Managers", "Project Management", "Website Builders"],
@@ -112,6 +114,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("answer");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showStartupSplash, setShowStartupSplash] = useState(true);
   const [error, setError] = useState("");
   const featureLabelById = useMemo(
     () => new Map(options.features.map((feature) => [feature.id, readableFeatureLabel(feature.label)])),
@@ -119,18 +122,46 @@ export default function App() {
   );
 
   useEffect(() => {
+    let mounted = true;
+    let pendingStartupCalls = 2;
+    const startedAt = Date.now();
+
+    function closeSplash() {
+      const remainingDelay = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt));
+      window.setTimeout(() => {
+        if (mounted) setShowStartupSplash(false);
+      }, remainingDelay);
+    }
+
+    function markStartupCallDone() {
+      pendingStartupCalls -= 1;
+      if (pendingStartupCalls <= 0) {
+        window.clearTimeout(maxSplashTimer);
+        closeSplash();
+      }
+    }
+
+    const maxSplashTimer = window.setTimeout(closeSplash, SPLASH_MAX_MS);
+
     getStatus()
       .then((statusResult) => {
         setStatus(statusResult);
         setUseLlm(Boolean(statusResult.llm.available));
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(markStartupCallDone);
 
     getOptions()
       .then((optionResult) => {
         setOptions(optionResult);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(markStartupCallDone);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(maxSplashTimer);
+    };
   }, []);
 
   function applyPreset(preset: DemoPreset | undefined, optionState = options) {
@@ -187,6 +218,7 @@ export default function App() {
 
   return (
     <main className="min-h-screen bg-canvas text-ink">
+      {showStartupSplash ? <StartupSplash status={status} /> : null}
       <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
         <header className="app-header">
           <div className="brand-lockup">
@@ -459,6 +491,42 @@ export default function App() {
         </section>
       </div>
     </main>
+  );
+}
+
+function StartupSplash({ status }: { status: ApiStatus | null }) {
+  return (
+    <div className="startup-splash" role="status" aria-live="polite" aria-label="Loading SaaSScout">
+      <div className="startup-card">
+        <div className="startup-brand">
+          <BrandMark />
+          <div>
+            <span>Loading workspace</span>
+            <strong>SaaSScout</strong>
+          </div>
+        </div>
+        <div className="startup-loader" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <p>{status?.source_notice ?? "Preparing grounded SaaS evidence."}</p>
+        <div className="startup-steps" aria-hidden="true">
+          <span>
+            <Database size={15} />
+            Data
+          </span>
+          <span>
+            <Layers3 size={15} />
+            Chroma
+          </span>
+          <span>
+            <Sparkles size={15} />
+            LLM
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 

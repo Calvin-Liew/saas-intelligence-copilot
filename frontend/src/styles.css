@@ -107,6 +107,77 @@ input[type="number"],
     @apply mt-1 max-w-2xl text-sm text-muted;
   }
 
+  .startup-splash {
+    background:
+      radial-gradient(circle at 20% 18%, hsl(var(--color-accent) / 0.16), transparent 31%),
+      radial-gradient(circle at 82% 76%, hsl(var(--color-signal) / 0.15), transparent 32%),
+      linear-gradient(135deg, hsl(var(--color-canvas) / 0.98), hsl(var(--color-panel) / 0.96));
+    @apply fixed inset-0 z-50 grid place-items-center px-4 text-ink;
+  }
+
+  .startup-card {
+    animation: splashFloat 2.6s ease-in-out infinite;
+    @apply relative w-full max-w-[420px] overflow-hidden rounded-ds-lg border border-accent/20 bg-surface/90 p-6 shadow-soft backdrop-blur;
+  }
+
+  .startup-card::before {
+    content: "";
+    background: linear-gradient(90deg, hsl(var(--color-accent)), hsl(var(--color-signal)));
+    @apply absolute left-5 right-5 top-0 h-1 rounded-b-full;
+  }
+
+  .startup-card::after {
+    animation: splashSweep 1.7s ease-in-out infinite;
+    content: "";
+    background: linear-gradient(100deg, transparent, hsl(var(--color-surface) / 0.75), transparent);
+    @apply pointer-events-none absolute inset-y-0 -left-1/2 w-1/2;
+  }
+
+  .startup-brand {
+    @apply relative z-10 flex items-center gap-4;
+  }
+
+  .startup-brand span {
+    @apply text-xs font-semibold uppercase tracking-wide text-accent;
+  }
+
+  .startup-brand strong {
+    @apply mt-1 block text-2xl font-semibold text-ink;
+  }
+
+  .startup-loader {
+    @apply relative z-10 mt-6 grid grid-cols-3 gap-2;
+  }
+
+  .startup-loader span {
+    animation: scoutPulse 1.05s ease-in-out infinite;
+    @apply h-2 rounded-full bg-accent/25;
+  }
+
+  .startup-loader span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .startup-loader span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  .startup-card p {
+    @apply relative z-10 mt-4 text-sm leading-6 text-muted;
+  }
+
+  .startup-steps {
+    @apply relative z-10 mt-4 flex flex-wrap gap-2;
+  }
+
+  .startup-steps span {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-accent/15 bg-panel px-3 py-1 text-xs font-semibold text-muted;
+  }
+
+  .startup-steps svg {
+    @apply text-signal;
+  }
+
   .status-strip {
     @apply flex w-full flex-wrap gap-1.5 rounded-ds-lg border border-accent/15 bg-surface/70 p-1.5 text-sm shadow-sm backdrop-blur-sm lg:w-auto lg:max-w-[820px] lg:justify-end xl:flex-nowrap xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none;
   }
@@ -591,5 +662,49 @@ input[type="number"],
 
   .table-link:hover {
     color: hsl(var(--color-accent-hover));
+  }
+}
+
+@keyframes scoutPulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scaleX(0.68);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes splashSweep {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translateX(320%);
+    opacity: 0;
+  }
+}
+
+@keyframes splashFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .startup-card,
+  .startup-card::after,
+  .startup-loader span {
+    animation: none;
   }
 }
