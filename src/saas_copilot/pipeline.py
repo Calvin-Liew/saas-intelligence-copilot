@@ -230,11 +230,11 @@ def _retrieve_review_evidence(
         row = result.row
         rows.append(
             {
-                "product_name": row.get("product_name", ""),
+                "product_name": _clean_text(row.get("product_name", "")),
                 "rating": row.get("rating", ""),
-                "review_title": row.get("review_title", ""),
-                "pros": row.get("pros", ""),
-                "cons": row.get("cons", ""),
+                "review_title": _clean_text(row.get("review_title", "")),
+                "pros": _clean_text(row.get("pros", "")),
+                "cons": _clean_text(row.get("cons", "")),
                 "snippet": _snippet(row),
                 "score": round(result.score, 3),
                 "retrieval_backend": row.get("retrieval_backend", ""),
@@ -254,13 +254,24 @@ def _review_where_clause(product_names: set[str]) -> dict[str, Any] | None:
 
 def _snippet(row: dict[str, Any]) -> str:
     parts = []
-    if row.get("pros"):
-        parts.append(f"Pros: {row.get('pros')}")
-    if row.get("cons"):
-        parts.append(f"Cons: {row.get('cons')}")
-    if row.get("review_text"):
-        parts.append(f"Review: {row.get('review_text')}")
+    pros = _clean_text(row.get("pros"))
+    cons = _clean_text(row.get("cons"))
+    review = _clean_text(row.get("review_text"))
+    if pros:
+        parts.append(_snippet_part("Pros", pros))
+    if cons:
+        parts.append(_snippet_part("Cons", cons))
+    if review:
+        parts.append(_snippet_part("Review", review))
     return " ".join(parts)
+
+
+def _snippet_part(label: str, text: str) -> str:
+    lowered = text.lower()
+    for prefix in ("pros:", "cons:", "review:"):
+        if lowered.startswith(prefix):
+            return f"{prefix[:-1].title()}: {text[len(prefix):].strip()}"
+    return f"{label}: {text}"
 
 
 def _review_themes(evidence: pd.DataFrame) -> pd.DataFrame:
@@ -565,13 +576,27 @@ def _review_derived_match_share(products: pd.DataFrame, required_features: list[
     return review_matched / matched
 
 
-def _join_unique(values: list[str], limit: int = 4) -> str:
+def _join_unique(values: list[Any], limit: int = 4) -> str:
     seen: list[str] = []
     for value in values:
-        value = value.strip()
-        if value and value.lower() != "nan" and value not in seen:
-            seen.append(value)
+        text = _clean_text(value)
+        if text and text not in seen:
+            seen.append(text)
     return "; ".join(seen[:limit])
+
+
+def _clean_text(value: Any) -> str:
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    if text.lower() in {"", "nan", "none", "null"}:
+        return ""
+    return text
 
 
 def _format_rating(value: Any) -> str:
