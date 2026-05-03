@@ -26,29 +26,46 @@ const optionsResponse = {
     { id: "a_b_testing", label: "a_b_testing", review_derived: false },
     { id: "api_sdk", label: "api_sdk", review_derived: false },
     { id: "automation", label: "automation", review_derived: false },
+    { id: "api_integrations", label: "api_integrations", review_derived: false },
+    { id: "reporting_analytics", label: "reporting_analytics", review_derived: false },
     { id: "reporting", label: "reporting", review_derived: false },
+    { id: "templates", label: "templates", review_derived: false },
     {
       id: "ticket_creation_and_assignment",
       label: "ticket_creation_and_assignment (review-derived)",
+      review_derived: true,
+    },
+    {
+      id: "reporting_and_analytics",
+      label: "reporting_and_analytics (review-derived)",
       review_derived: true,
     },
     { id: "workflow_builder", label: "workflow_builder", review_derived: false },
   ],
   demo_presets: [
     {
-      label: "Support ticketing risk review",
+      label: "Support desk review risk",
       query: "Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.",
       category: "Customer Support",
-      features: ["ticket_creation_and_assignment"],
+      features: ["ticket_creation_and_assignment", "reporting_and_analytics"],
       tools: ["Zendesk", "Zoho Desk", "Freshdesk"],
       max_price: null,
       top_k: 3,
     },
     {
-      label: "Affordable project management shortlist",
-      query: "Find affordable project management tools with automation and reporting.",
+      label: "CRM under $30",
+      query: "Recommend a CRM for a small team that needs automation, workflow builder, reporting, and API integrations under $30.",
+      category: "Crm",
+      features: ["automation", "workflow_builder", "reporting_analytics", "api_integrations"],
+      tools: [],
+      max_price: 30,
+      top_k: 5,
+    },
+    {
+      label: "PM automation shortlist",
+      query: "Find affordable project management platforms with automation, reporting analytics, templates, and API integrations.",
       category: "Project Management",
-      features: ["automation", "reporting"],
+      features: ["automation", "reporting_analytics", "templates", "api_integrations"],
       tools: [],
       max_price: 25,
       top_k: 5,
@@ -144,7 +161,7 @@ test("shows selected chips and can clear feature selections", async ({ page }) =
   await expect(page.getByRole("button", { name: /Ticket Creation and Assignment/i })).toHaveCount(0);
   await page.getByLabel("Required features search").fill("automation");
   await page.getByLabel("Automation").check();
-  await expect(page.getByRole("button", { name: /Automation/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Automation", exact: true })).toBeVisible();
 });
 
 test("renders required feature labels as readable product language", async ({ page }) => {

@@ -89,10 +89,12 @@ Open `http://localhost:5173`. The frontend calls `http://localhost:8000` by defa
 | Prompt | What it demonstrates |
 |---|---|
 | `Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.` | Explicit comparison, supplemental pricing provenance, review-derived support feature signals |
-| `Find affordable project management tools with automation and reporting.` | Chroma product discovery, feature fit, budget-aware ranking |
-| `Recommend a CRM for a small team with automation and workflow builder under $30.` | Pricing filters, structured feature scoring, grounded Qwen answer |
-| `Find website builders with API access, analytics, and templates.` | Metadata category filter plus feature-matrix matching |
-| `Recommend a password manager with SSO and advanced security.` | Security-oriented feature mapping and shortlist generation |
+| `Recommend a CRM for a small team that needs automation, workflow builder, reporting, and API integrations under $30.` | Pricing filters, structured feature scoring, and budget-aware ranking |
+| `Find affordable project management platforms with automation, reporting analytics, templates, and API integrations.` | Chroma product discovery plus structured feature fit |
+| `Compare Salesforce, HubSpot, and Pipedrive for a growing sales team that cares about automation, reporting, workflow builder, and pricing.` | Explicit vendor comparison with scorecard evidence |
+| `Find website builders for a startup launch that need API access, analytics, templates, SEO tools, and custom domains.` | Metadata category filter plus feature-matrix matching |
+| `Recommend a password manager with SSO, secure sharing, 2FA/MFA, breach alerts, and strong team security.` | Security-focused feature search with readable feature labels |
+| `Create a procurement-style recommendation memo for choosing a customer support platform for a 200-person company.` | Memo-style answer, review snippets, and follow-up procurement checks |
 
 ## How to Run
 

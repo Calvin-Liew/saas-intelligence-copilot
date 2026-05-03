@@ -33,7 +33,8 @@ def test_options_endpoint_includes_feature_labels() -> None:
     assert "Customer Support" in data["categories"]
     assert any(feature["id"] == "ticket_creation_and_assignment" for feature in data["features"])
     assert any("review-derived" in feature["label"] for feature in data["features"])
-    assert len(data["demo_presets"]) == 5
+    assert len(data["demo_presets"]) == 7
+    assert data["demo_presets"][0]["label"] == "Support desk review risk"
 
 
 def test_analyze_endpoint_serializes_tables_and_provenance() -> None:
