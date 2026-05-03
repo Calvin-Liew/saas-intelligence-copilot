@@ -168,6 +168,9 @@ test("runs analysis and renders cards, tabs, tables, and evidence", async ({ pag
 
   await expect(page.getByLabel("Recommended tools")).toContainText("Freshdesk");
   await expect(page.getByText("Direct answer: Freshdesk")).toBeVisible();
+  await expect(page.getByLabel("Evidence used in answer")).toContainText("Structured Product Evidence");
+  await expect(page.getByLabel("Evidence used in answer")).toContainText("Review Evidence");
+  await expect(page.getByLabel("Evidence used in answer")).toContainText("Useful support desk");
   await expect(page.getByRole("button", { name: "Scorecard (1)" })).toBeVisible();
 
   await page.getByRole("button", { name: "Scorecard (1)" }).click();

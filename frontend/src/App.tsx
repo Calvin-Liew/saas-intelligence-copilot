@@ -450,8 +450,17 @@ function AnswerView({ result }: { result: AnalysisResult }) {
     <div className="flex flex-col gap-4">
       <ToolCards rows={result.recommended_tools} />
       <div className="answer-grid">
-        <article className="markdown">
-          <ReactMarkdown>{result.answer}</ReactMarkdown>
+        <article className="answer-card">
+          <div className="answer-header">
+            <div>
+              <span>Grounded Answer</span>
+              <h2>Recommendation Memo</h2>
+            </div>
+            <Badge>{titleCase(result.confidence)} confidence</Badge>
+          </div>
+          <div className="markdown">
+            <ReactMarkdown>{result.answer}</ReactMarkdown>
+          </div>
         </article>
         <aside className="side-panel">
           <h2>Why This Ranking</h2>
@@ -462,6 +471,7 @@ function AnswerView({ result }: { result: AnalysisResult }) {
           <List items={result.follow_up_questions} />
         </aside>
       </div>
+      <EvidenceHighlights result={result} />
     </div>
   );
 }
@@ -508,6 +518,84 @@ function EvidenceView({ result }: { result: AnalysisResult }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function EvidenceHighlights({ result }: { result: AnalysisResult }) {
+  const structuredRows = result.comparison_table.slice(0, 3);
+  const reviewRows = result.evidence_snippets.slice(0, 4);
+  return (
+    <section className="evidence-summary" aria-label="Evidence used in answer">
+      <div className="section-heading">
+        <div>
+          <span>Dataset Evidence</span>
+          <h2>What This Answer Used</h2>
+        </div>
+        <Badge>{reviewRows.length} review snippets</Badge>
+      </div>
+
+      <div className="evidence-grid">
+        <div className="evidence-column">
+          <h3>Structured Product Evidence</h3>
+          {structuredRows.length ? (
+            <div className="evidence-list">
+              {structuredRows.map((row) => (
+                <article key={String(row.Product)} className="evidence-card">
+                  <div className="evidence-card-top">
+                    <strong>{formatCell(row.Product)}</strong>
+                    <span>{formatCell(row.Score)}</span>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Feature fit</dt>
+                      <dd>{formatCell(row["Feature fit"])}</dd>
+                    </div>
+                    <div>
+                      <dt>Feature evidence</dt>
+                      <dd>{formatCell(row["Feature Evidence Quality"])}</dd>
+                    </div>
+                    <div>
+                      <dt>Pricing</dt>
+                      <dd>{formatCell(row.Pricing)}</dd>
+                    </div>
+                    <div>
+                      <dt>Source</dt>
+                      <dd>{renderSourceLink(row["Pricing Source URLs"])}</dd>
+                    </div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="evidence-empty">No structured comparison rows were returned.</p>
+          )}
+        </div>
+
+        <div className="evidence-column">
+          <h3>Review Evidence</h3>
+          {reviewRows.length ? (
+            <div className="review-list">
+              {reviewRows.map((row, index) => (
+                <article key={`${formatCell(row.product_name)}-${index}`} className="review-card">
+                  <div className="review-card-top">
+                    <strong>{formatCell(row.product_name)}</strong>
+                    <span>{formatCell(row.rating)} rating</span>
+                  </div>
+                  <h4>{formatCell(row.review_title)}</h4>
+                  <p>{formatCell(row.snippet)}</p>
+                  <small>
+                    {formatCell(row.retrieval_backend)} match
+                    {row.score !== null && row.score !== undefined ? ` - score ${formatCell(row.score)}` : ""}
+                  </small>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="evidence-empty">No linked review evidence was retrieved for this answer.</p>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -566,14 +654,20 @@ function formatCell(value: CellValue): string {
 function renderCell(value: CellValue): ReactNode {
   const text = formatCell(value);
   if (text.startsWith("http://") || text.startsWith("https://")) {
-    const firstUrl = text.split(";")[0].trim();
-    return (
-      <a className="table-link" href={firstUrl} target="_blank" rel="noreferrer">
-        Source <ExternalLink size={13} />
-      </a>
-    );
+    return renderSourceLink(text);
   }
   return text;
+}
+
+function renderSourceLink(value: CellValue): ReactNode {
+  const text = formatCell(value);
+  if (!text.startsWith("http://") && !text.startsWith("https://")) return text;
+  const firstUrl = text.split(";")[0].trim();
+  return (
+    <a className="table-link" href={firstUrl} target="_blank" rel="noreferrer">
+      Source <ExternalLink size={13} />
+    </a>
+  );
 }
 
 function isMissing(value: CellValue): boolean {
