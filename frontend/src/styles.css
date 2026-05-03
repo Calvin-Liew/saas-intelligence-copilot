@@ -108,7 +108,7 @@ input[type="number"],
   }
 
   .status-strip {
-    @apply flex w-full flex-wrap gap-1.5 rounded-ds-lg border border-accent/15 bg-surface/70 p-1.5 text-sm shadow-sm backdrop-blur-sm lg:w-auto lg:max-w-[660px] lg:justify-end;
+    @apply flex w-full flex-wrap gap-1.5 rounded-ds-lg border border-accent/15 bg-surface/70 p-1.5 text-sm shadow-sm backdrop-blur-sm lg:w-auto lg:max-w-[780px] lg:justify-end xl:flex-nowrap;
   }
 
   .panel {
@@ -200,7 +200,7 @@ input[type="number"],
   }
 
   .status-pill {
-    @apply flex min-h-10 min-w-[126px] flex-1 items-center gap-2 rounded-ds border border-transparent bg-surface/85 px-3 text-xs shadow-sm ring-1 ring-accent/15 lg:flex-none;
+    @apply flex min-h-9 min-w-[112px] flex-1 items-center gap-1.5 rounded-ds border border-transparent bg-surface/85 px-2.5 text-xs shadow-sm ring-1 ring-accent/15 lg:flex-none;
   }
 
   .status-pill svg {
@@ -212,7 +212,7 @@ input[type="number"],
   }
 
   .status-pill strong {
-    @apply min-w-0 max-w-[170px] truncate font-semibold text-ink;
+    @apply min-w-0 max-w-[150px] truncate font-semibold text-ink xl:max-w-none;
   }
 
   .metric {
