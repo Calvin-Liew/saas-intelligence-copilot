@@ -1,4 +1,4 @@
-"""SaaS Intelligence Copilot package."""
+"""SaaSScout package."""
 
 __all__ = ["__version__"]
 

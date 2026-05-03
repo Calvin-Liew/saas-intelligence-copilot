@@ -146,8 +146,8 @@ test.beforeEach(async ({ page }) => {
 test("loads status and exposes the primary analysis controls", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "SaaS Intelligence Copilot" })).toBeVisible();
-  await expect(page.getByText("Grounded SaaS evaluation across pricing, features, and reviews.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "SaaSScout" })).toBeVisible();
+  await expect(page.getByText("Scout smarter SaaS decisions across pricing, features, and reviews.")).toBeVisible();
   await expect(page.getByText("Live RAG Demo")).toBeVisible();
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByText("Products")).toBeVisible();

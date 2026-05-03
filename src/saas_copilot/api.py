@@ -38,7 +38,7 @@ class AnalyzeRequest(BaseModel):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="SaaS Intelligence Copilot API", version="0.1.0")
+    app = FastAPI(title="SaaSScout API", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_frontend_origins(),

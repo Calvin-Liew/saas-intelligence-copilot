@@ -1,8 +1,8 @@
-# SaaS Intelligence Copilot
+# SaaSScout
 
 ## Overview
 
-SaaS Intelligence Copilot is a RAG-based software evaluation assistant for product analysts, procurement teams, and operators. It combines product metadata, pricing plans, feature flags, and review evidence to produce grounded SaaS recommendations, comparisons, and procurement-style next checks.
+SaaSScout is a RAG-based software evaluation assistant for product analysts, procurement teams, and operators. It combines product metadata, pricing plans, feature flags, and review evidence to produce grounded SaaS recommendations, comparisons, and procurement-style next checks.
 
 The app can run locally from Kaggle-processed files and Chroma indexes, or online from a packaged deployment artifact. Fictional demo data exists only as a development fallback.
 

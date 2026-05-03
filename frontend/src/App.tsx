@@ -196,8 +196,8 @@ export default function App() {
                 <span>Enterprise software evaluation</span>
                 <span className="brand-badge">Live RAG Demo</span>
               </div>
-              <h1>SaaS Intelligence Copilot</h1>
-              <p>Grounded SaaS evaluation across pricing, features, and reviews.</p>
+              <h1>SaaSScout</h1>
+              <p>Scout smarter SaaS decisions across pricing, features, and reviews.</p>
             </div>
           </div>
           <div className="status-strip">
