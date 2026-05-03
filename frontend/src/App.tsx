@@ -434,6 +434,8 @@ export default function App() {
 }
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
+  const tileId = compact ? "brand-tile-small" : "brand-tile-main";
+  const ribbonId = compact ? "brand-ribbon-small" : "brand-ribbon-main";
   return (
     <svg
       className={compact ? "brand-logo brand-logo-small" : "brand-logo"}
@@ -441,28 +443,29 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
       aria-hidden="true"
       focusable="false"
     >
-      <rect x="3" y="3" width="66" height="66" rx="16" fill="#172033" />
-      <path d="M18 50h36" stroke="#2563eb" strokeWidth="5" strokeLinecap="round" opacity="0.78" />
+      <defs>
+        <linearGradient id={tileId} x1="8" y1="5" x2="66" y2="68" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#f0fdf4" />
+        </linearGradient>
+        <linearGradient id={ribbonId} x1="19" y1="16" x2="53" y2="58" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#0f766e" />
+          <stop offset="0.52" stopColor="#10b981" />
+          <stop offset="1" stopColor="#84cc16" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="4" width="64" height="64" rx="18" fill={`url(#${tileId})`} />
+      <rect x="5" y="5" width="62" height="62" rx="17" fill="none" stroke="#bbf7d0" strokeWidth="1.5" />
       <path
-        d="M18 48c9-7 18-7 28 0 4 3 7 3 11-1"
+        d="M52 19c-8-7-27-6-31 5-6 16 31 9 30 26-1 13-21 15-33 6"
         fill="none"
-        stroke="#2dd4bf"
-        strokeWidth="4"
+        stroke={`url(#${ribbonId})`}
+        strokeWidth="10"
         strokeLinecap="round"
       />
-      <circle cx="18" cy="48" r="4" fill="#ffffff" />
-      <circle cx="46" cy="48" r="4" fill="#2dd4bf" />
-      <path
-        d="M45 25l5 5 9-12"
-        fill="none"
-        stroke="#2dd4bf"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <text x="15" y="40" fill="#ffffff" fontFamily="Inter, Arial, sans-serif" fontSize="24" fontWeight="850">
-        SI
-      </text>
+      <circle cx="52" cy="19" r="5.5" fill="#fb7185" />
+      <circle cx="18" cy="56" r="5.5" fill="#14b8a6" />
+      <circle cx="38" cy="36" r="3.5" fill="#ffffff" opacity="0.95" />
     </svg>
   );
 }

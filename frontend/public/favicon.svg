@@ -1,9 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-label="SaaS Intelligence Copilot">
-  <rect x="3" y="3" width="66" height="66" rx="16" fill="#172033"/>
-  <path d="M18 50h36" stroke="#2563eb" stroke-width="5" stroke-linecap="round" opacity="0.78"/>
-  <path d="M18 48c9-7 18-7 28 0 4 3 7 3 11-1" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="18" cy="48" r="4" fill="#ffffff"/>
-  <circle cx="46" cy="48" r="4" fill="#2dd4bf"/>
-  <path d="M45 25l5 5 9-12" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="15" y="40" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="850">SI</text>
+  <defs>
+    <linearGradient id="tile" x1="8" y1="5" x2="66" y2="68" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f0fdf4"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="19" y1="16" x2="53" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset=".52" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#84cc16"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="64" height="64" rx="18" fill="url(#tile)"/>
+  <rect x="5" y="5" width="62" height="62" rx="17" fill="none" stroke="#bbf7d0" stroke-width="1.5"/>
+  <path d="M52 19c-8-7-27-6-31 5-6 16 31 9 30 26-1 13-21 15-33 6" fill="none" stroke="url(#ribbon)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="52" cy="19" r="5.5" fill="#fb7185"/>
+  <circle cx="18" cy="56" r="5.5" fill="#14b8a6"/>
+  <circle cx="38" cy="36" r="3.5" fill="#ffffff" opacity=".95"/>
 </svg>

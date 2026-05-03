@@ -35,7 +35,7 @@ input[type="number"],
 
   .app-header::before {
     content: "";
-    background: linear-gradient(90deg, #2563eb 0%, #0f766e 48%, #b45309 100%);
+    background: linear-gradient(90deg, #14b8a6 0%, #84cc16 52%, #fb7185 100%);
     @apply absolute left-0 top-0 h-1 w-full;
   }
 
@@ -57,7 +57,7 @@ input[type="number"],
   }
 
   .brand-logo {
-    filter: drop-shadow(0 12px 18px rgba(23, 32, 51, 0.18));
+    filter: drop-shadow(0 12px 18px rgba(16, 185, 129, 0.18));
     @apply h-14 w-14 shrink-0;
   }
 
