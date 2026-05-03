@@ -1,6 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SaaS Intelligence Copilot">
   <rect width="64" height="64" rx="14" fill="#172033"/>
-  <path d="M16 43h32" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
-  <path d="M42 26l5 5 8-10" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="15" y="37" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">SI</text>
+  <path d="M13 18h38M13 32h38M13 46h38M20 12v40M34 12v40M48 12v40" stroke="#2a3448" stroke-width="1.5"/>
+  <path d="M14 44h34" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="18" cy="44" r="3" fill="#ffffff"/>
+  <circle cx="33" cy="44" r="3" fill="#2563eb"/>
+  <circle cx="48" cy="44" r="3" fill="#2dd4bf"/>
+  <path d="M41 24l5 5 9-11" fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="14" y="36" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">SI</text>
 </svg>

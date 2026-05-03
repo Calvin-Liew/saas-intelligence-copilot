@@ -30,7 +30,26 @@ input[type="number"],
 
 @layer components {
   .app-header {
-    @apply flex flex-col justify-between gap-4 border-b border-line pb-4 lg:flex-row lg:items-end;
+    @apply relative flex flex-col justify-between gap-4 overflow-hidden rounded-xl border border-line bg-white p-4 shadow-soft lg:flex-row lg:items-end;
+  }
+
+  .app-header::before {
+    content: "";
+    background: linear-gradient(90deg, #2563eb 0%, #0f766e 48%, #b45309 100%);
+    @apply absolute left-0 top-0 h-1 w-full;
+  }
+
+  .app-header::after {
+    content: "";
+    background-image:
+      linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 118, 110, 0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+    @apply pointer-events-none absolute inset-0 opacity-60;
+  }
+
+  .app-header > * {
+    @apply relative z-10;
   }
 
   .brand-lockup {
@@ -38,11 +57,20 @@ input[type="number"],
   }
 
   .brand-mark {
-    @apply relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink text-white shadow-soft;
+    @apply relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-ink text-white shadow-soft ring-1 ring-white/40;
+  }
+
+  .brand-mark::before {
+    content: "";
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.13) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+    background-size: 12px 12px;
+    @apply absolute inset-0 opacity-45;
   }
 
   .brand-mark span {
-    @apply text-base font-black;
+    @apply relative z-10 text-base font-black;
   }
 
   .brand-mark::after {
@@ -51,7 +79,14 @@ input[type="number"],
   }
 
   .brand-mark i {
-    @apply absolute right-2 top-2 h-2 w-3 rotate-[-45deg] border-b-[3px] border-l-[3px] border-teal;
+    @apply absolute right-2 top-2 z-10 h-2 w-3 rotate-[-45deg] border-b-[3px] border-l-[3px] border-teal;
+  }
+
+  .brand-mark b {
+    box-shadow:
+      15px 0 0 #2563eb,
+      30px 0 0 #2dd4bf;
+    @apply absolute bottom-2 left-3 z-10 h-1.5 w-1.5 rounded-full bg-white;
   }
 
   .brand-mark-small {
@@ -75,7 +110,7 @@ input[type="number"],
   }
 
   .brand-copy h1 {
-    @apply mt-1 text-2xl font-semibold text-ink;
+    @apply mt-1 text-2xl font-semibold text-ink sm:text-3xl;
   }
 
   .brand-copy p {

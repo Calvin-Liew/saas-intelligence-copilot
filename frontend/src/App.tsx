@@ -114,6 +114,7 @@ export default function App() {
             <div className="brand-mark" aria-hidden="true">
               <span>SI</span>
               <i />
+              <b />
             </div>
             <div className="brand-copy">
               <div className="brand-eyebrow">
@@ -344,6 +345,7 @@ export default function App() {
                 <div className="brand-mark brand-mark-small" aria-hidden="true">
                   <span>SI</span>
                   <i />
+                  <b />
                 </div>
                 <span>Run analysis</span>
                 <p>Try a showcase query</p>
