@@ -27,4 +27,4 @@ jobs:
         run: python -m pip install --upgrade requests
 
       - name: Run production monitor
-        run: python scripts/production_monitor.py --site-url https://saas-intelligence-copilot-calvi.netlify.app --timeout 45
+        run: python scripts/production_monitor.py --site-url https://saas-intelligence-copilot-calvi.netlify.app --timeout 45 --retries 2 --retry-delay 8

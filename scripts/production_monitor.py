@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,6 +10,7 @@ import requests
 
 
 DEFAULT_SITE_URL = "https://saas-intelligence-copilot-calvi.netlify.app"
+RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 
 @dataclass
@@ -24,16 +26,20 @@ def main() -> None:
     parser.add_argument("--site-url", default=DEFAULT_SITE_URL, help="Primary Netlify site URL.")
     parser.add_argument("--deploy-url", default="", help="Optional unique Netlify deploy URL.")
     parser.add_argument("--timeout", type=float, default=20.0, help="HTTP timeout in seconds.")
+    parser.add_argument("--retries", type=int, default=2, help="Retries for transient 5xx, rate limit, or timeout failures.")
+    parser.add_argument("--retry-delay", type=float, default=8.0, help="Seconds to wait between retries.")
     args = parser.parse_args()
 
     site_url = args.site_url.rstrip("/")
     checks = [
-        check_health(site_url, args.timeout),
-        check_status(site_url, args.timeout),
-        check_analyze(site_url, args.timeout),
+        check_health(site_url, args.timeout, args.retries, args.retry_delay),
+        check_status(site_url, args.timeout, args.retries, args.retry_delay),
+        check_analyze(site_url, args.timeout, args.retries, args.retry_delay),
     ]
     if args.deploy_url:
-        checks.append(check_status(args.deploy_url.rstrip("/"), args.timeout, name="unique deploy status"))
+        checks.append(
+            check_status(args.deploy_url.rstrip("/"), args.timeout, args.retries, args.retry_delay, name="unique deploy status")
+        )
 
     print("\nSaaSScout Production Monitor")
     print("=" * 34)
@@ -52,8 +58,8 @@ def main() -> None:
     print("\nResult: PASS. Netlify, Render, Chroma, and template analyze path are reachable.")
 
 
-def check_health(base_url: str, timeout: float) -> RemoteCheck:
-    response = _request("GET", f"{base_url}/health", timeout=timeout)
+def check_health(base_url: str, timeout: float, retries: int, retry_delay: float) -> RemoteCheck:
+    response = _request("GET", f"{base_url}/health", timeout=timeout, retries=retries, retry_delay=retry_delay)
     if isinstance(response, RemoteCheck):
         return response
     passed = response.status_code == 200 and _json(response).get("status") == "ok"
@@ -65,8 +71,8 @@ def check_health(base_url: str, timeout: float) -> RemoteCheck:
     )
 
 
-def check_status(base_url: str, timeout: float, name: str = "status") -> RemoteCheck:
-    response = _request("GET", f"{base_url}/api/status", timeout=timeout)
+def check_status(base_url: str, timeout: float, retries: int, retry_delay: float, name: str = "status") -> RemoteCheck:
+    response = _request("GET", f"{base_url}/api/status", timeout=timeout, retries=retries, retry_delay=retry_delay)
     if isinstance(response, RemoteCheck):
         return response
     if response.status_code in {502, 503, 504}:
@@ -100,7 +106,7 @@ def check_status(base_url: str, timeout: float, name: str = "status") -> RemoteC
     )
 
 
-def check_analyze(base_url: str, timeout: float) -> RemoteCheck:
+def check_analyze(base_url: str, timeout: float, retries: int, retry_delay: float) -> RemoteCheck:
     payload = {
         "query": "Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.",
         "category": "Customer Support",
@@ -112,7 +118,14 @@ def check_analyze(base_url: str, timeout: float) -> RemoteCheck:
         "top_k": 3,
         "use_llm": False,
     }
-    response = _request("POST", f"{base_url}/api/analyze", json=payload, timeout=timeout)
+    response = _request(
+        "POST",
+        f"{base_url}/api/analyze",
+        json=payload,
+        timeout=timeout,
+        retries=retries,
+        retry_delay=retry_delay,
+    )
     if isinstance(response, RemoteCheck):
         return response
     if response.status_code in {502, 503, 504}:
@@ -135,13 +148,35 @@ def check_analyze(base_url: str, timeout: float) -> RemoteCheck:
     )
 
 
-def _request(method: str, url: str, **kwargs) -> requests.Response | RemoteCheck:
-    try:
-        return requests.request(method, url, **kwargs)
-    except requests.Timeout as exc:
-        return RemoteCheck("Netlify/Render", url, False, f"timeout: {exc}")
-    except requests.RequestException as exc:
-        return RemoteCheck("Netlify", url, False, f"{type(exc).__name__}: {exc}")
+def _request(method: str, url: str, retries: int = 0, retry_delay: float = 0, **kwargs) -> requests.Response | RemoteCheck:
+    attempts = max(0, retries) + 1
+    last_failure: RemoteCheck | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.request(method, url, **kwargs)
+        except requests.Timeout as exc:
+            last_failure = RemoteCheck("Netlify/Render", url, False, f"timeout on attempt {attempt}/{attempts}: {exc}")
+        except requests.RequestException as exc:
+            last_failure = RemoteCheck(
+                "Netlify",
+                url,
+                False,
+                f"{type(exc).__name__} on attempt {attempt}/{attempts}: {exc}",
+            )
+        else:
+            if response.status_code not in RETRYABLE_STATUS_CODES or attempt == attempts:
+                return response
+            last_failure = RemoteCheck(
+                "Netlify/Render",
+                url,
+                False,
+                f"status={response.status_code} on attempt {attempt}/{attempts}, body={_short_body(response)}",
+            )
+
+        if attempt < attempts:
+            time.sleep(retry_delay)
+
+    return last_failure or RemoteCheck("Netlify", url, False, "request failed")
 
 
 def _json(response: requests.Response) -> dict[str, Any]:
