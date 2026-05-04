@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from saas_copilot.config import PATHS  # noqa: E402
 from saas_copilot.data_loader import load_processed_or_demo  # noqa: E402
+from saas_copilot.enrichment import load_open_source_alternatives  # noqa: E402
 
 
 def main() -> None:
@@ -19,6 +20,7 @@ def main() -> None:
         raise SystemExit("Install chromadb before building persistent indexes.") from exc
 
     products, reviews, _ = load_processed_or_demo()
+    alternatives = load_open_source_alternatives()
     index_path = PATHS.index_dir / "chroma"
     index_path.mkdir(parents=True, exist_ok=True)
 
@@ -38,6 +40,14 @@ def main() -> None:
         id_prefix="review",
         text_column="review_doc",
         metadata_columns=["product_name", "rating", "normalized_name", "review_date"],
+    )
+    _upsert_collection(
+        client,
+        name="open_source_alternatives",
+        frame=alternatives,
+        id_prefix="alternative",
+        text_column="open_source_doc",
+        metadata_columns=["tool_name", "category", "parent_category", "license", "normalized_name"],
     )
     print(f"Built Chroma collections under {index_path}")
 

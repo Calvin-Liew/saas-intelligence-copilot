@@ -20,7 +20,7 @@ import ReactMarkdown from "react-markdown";
 import { analyze, getOptions, getStatus } from "./api";
 import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, DemoPreset, Dict } from "./types";
 
-type Tab = "answer" | "scorecard" | "reviews" | "evidence";
+type Tab = "answer" | "scorecard" | "reviews" | "evidence" | "alternatives";
 type CellValue = string | number | boolean | null | undefined;
 const SPLASH_MIN_MS = 950;
 const SPLASH_MAX_MS = 2400;
@@ -75,6 +75,15 @@ const fallbackOptions: ApiOptions = {
       max_price: 25,
       top_k: 5,
     },
+    {
+      label: "Open-source alternatives",
+      query: "Find open-source alternatives to Airtable or Notion for a team that wants self-hosted knowledge management.",
+      category: "All",
+      features: [],
+      tools: [],
+      max_price: null,
+      top_k: 5,
+    },
   ],
 };
 
@@ -85,6 +94,7 @@ const fallbackStatus: ApiStatus = {
   review_count: 4899,
   category_count: 29,
   chroma: { ready: false, product_count: 335, review_count: 4899, status: "Checking index" },
+  enrichment: { ready: false, factgrid_matches: 0, wikidata_matches: 0, open_source_alternatives: 0, status: "Checking sources" },
   llm: {
     label: "Checking provider",
     available: false,
@@ -237,6 +247,7 @@ export default function App() {
             <StatusPill icon={<Layers3 size={16} />} label="Products" value={String(status?.product_count ?? "-")} />
             <StatusPill icon={<FileSearch size={16} />} label="Reviews" value={String(status?.review_count ?? "-")} />
             <StatusPill icon={<Server size={16} />} label="Chroma" value={status?.chroma.status ?? "Loading"} />
+            <StatusPill icon={<CheckCircle2 size={16} />} label="Enrichment" value={status?.enrichment.status ?? "Loading"} />
             <StatusPill icon={<Sparkles size={16} />} label="LLM" value={status?.llm.label ?? "Loading"} />
           </div>
         </header>
@@ -442,7 +453,7 @@ export default function App() {
 
                 <div className="panel min-w-0">
                   <div className="tabs">
-                    {(["answer", "scorecard", "reviews", "evidence"] as Tab[]).map((tab) => (
+                    {tabsForResult(result).map((tab) => (
                       <button
                         key={tab}
                         className={activeTab === tab ? "tab-active" : ""}
@@ -461,6 +472,8 @@ export default function App() {
                     <Table rows={result.comparison_table} />
                   ) : activeTab === "reviews" ? (
                     <Table rows={result.review_themes} />
+                  ) : activeTab === "alternatives" ? (
+                    <AlternativesView result={result} />
                   ) : (
                     <EvidenceView result={result} />
                   )}
@@ -472,7 +485,7 @@ export default function App() {
                 <span>Run analysis</span>
                 <p>Try a showcase query</p>
                 <div className="quick-presets">
-                  {options.demo_presets.slice(0, 3).map((item, index) => (
+                  {options.demo_presets.slice(0, 4).map((item, index) => (
                     <button
                       key={item.label}
                       type="button"
@@ -746,6 +759,21 @@ function ToolCards({ rows }: { rows: Dict[] }) {
 function EvidenceView({ result }: { result: AnalysisResult }) {
   return (
     <div className="flex flex-col gap-4">
+      {result.enterprise_metadata.length ? (
+        <div>
+          <h2 className="section-title">FactGrid Enterprise Metadata</h2>
+          <Table rows={result.enterprise_metadata} />
+        </div>
+      ) : null}
+      {result.vendor_metadata.length ? (
+        <div>
+          <h2 className="section-title">Vendor Facts</h2>
+          <Notice tone="warn">
+            Wikidata vendor facts are public metadata, not vendor-confirmed procurement evidence.
+          </Notice>
+          <Table rows={result.vendor_metadata} />
+        </div>
+      ) : null}
       <Table rows={result.evidence_snippets} />
       <div className="grid gap-4 md:grid-cols-2">
         <div>
@@ -761,9 +789,23 @@ function EvidenceView({ result }: { result: AnalysisResult }) {
   );
 }
 
+function AlternativesView({ result }: { result: AnalysisResult }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Notice tone="warn">
+        Open-source alternatives are sourced from OpenAlternative directory data and should be validated as direct replacements before adoption.
+      </Notice>
+      <Table rows={result.open_source_alternatives} />
+    </div>
+  );
+}
+
 function EvidenceHighlights({ result }: { result: AnalysisResult }) {
   const structuredRows = result.comparison_table.slice(0, 3);
   const reviewRows = result.evidence_snippets.slice(0, 4);
+  const enterpriseRows = result.enterprise_metadata.slice(0, 3);
+  const vendorRows = result.vendor_metadata.slice(0, 3);
+  const alternativeRows = result.open_source_alternatives.slice(0, 3);
   return (
     <section className="evidence-summary" aria-label="Evidence used in answer">
       <div className="section-heading">
@@ -835,6 +877,87 @@ function EvidenceHighlights({ result }: { result: AnalysisResult }) {
           )}
         </div>
       </div>
+
+      {enterpriseRows.length || vendorRows.length || alternativeRows.length ? (
+        <div className="evidence-grid mt-4">
+          {enterpriseRows.length ? (
+            <div className="evidence-column">
+              <h3>Enterprise Metadata</h3>
+              <div className="evidence-list">
+                {enterpriseRows.map((row) => (
+                  <article key={String(row.Product)} className="evidence-card">
+                    <div className="evidence-card-top">
+                      <strong>{formatCell(row.Product)}</strong>
+                      <span>{formatCell(row["FactGrid Status"])}</span>
+                    </div>
+                    <dl>
+                      <div>
+                        <dt>Pricing</dt>
+                        <dd>{formatCell(row.Pricing)}</dd>
+                      </div>
+                      <div>
+                        <dt>SLA</dt>
+                        <dd>{formatCell(row.SLA)}</dd>
+                      </div>
+                      <div>
+                        <dt>API</dt>
+                        <dd>{formatCell(row.API)}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {vendorRows.length ? (
+            <div className="evidence-column">
+              <h3>Vendor Facts</h3>
+              <div className="evidence-list">
+                {vendorRows.map((row) => (
+                  <article key={String(row.Product)} className="evidence-card">
+                    <div className="evidence-card-top">
+                      <strong>{formatCell(row.Product)}</strong>
+                      <span>{formatCell(row["Match Confidence"])}</span>
+                    </div>
+                    <dl>
+                      <div>
+                        <dt>Entity</dt>
+                        <dd>{formatCell(row.Label)}</dd>
+                      </div>
+                      <div>
+                        <dt>Country</dt>
+                        <dd>{formatCell(row.Country)}</dd>
+                      </div>
+                      <div>
+                        <dt>Types</dt>
+                        <dd>{formatCell(row["Entity Types"])}</dd>
+                      </div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {alternativeRows.length ? (
+            <div className="evidence-column">
+              <h3>Open-Source Alternatives</h3>
+              <div className="evidence-list">
+                {alternativeRows.map((row) => (
+                  <article key={String(row.Tool)} className="evidence-card">
+                    <div className="evidence-card-top">
+                      <strong>{formatCell(row.Tool)}</strong>
+                      <span>{formatCell(row.License)}</span>
+                    </div>
+                    <p className="text-sm leading-6 text-ink">{formatCell(row.Description)}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -915,6 +1038,7 @@ function isMissing(value: CellValue): boolean {
   return (
     text === "missing" ||
     text.includes("pricing unavailable") ||
+    text.includes("no factgrid") ||
     text.includes("no positive structured") ||
     text.includes("no review") ||
     text.includes("no linked review")
@@ -984,5 +1108,14 @@ function tabLabel(tab: Tab, result: AnalysisResult): string {
   if (tab === "scorecard") return `Scorecard (${result.comparison_table.length})`;
   if (tab === "reviews") return `Reviews (${result.review_themes.length})`;
   if (tab === "evidence") return `Evidence (${result.evidence_snippets.length})`;
+  if (tab === "alternatives") return `Alternatives (${result.open_source_alternatives.length})`;
   return "Answer";
+}
+
+function tabsForResult(result: AnalysisResult): Tab[] {
+  const tabs: Tab[] = ["answer", "scorecard", "reviews", "evidence"];
+  if (result.open_source_alternatives.length) {
+    tabs.push("alternatives");
+  }
+  return tabs;
 }

@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 from .data_loader import load_processed_or_demo
+from .enrichment import search_open_source_alternatives
 from .llm import LLMResult, generate_answer
 from .normalizer import normalize_name, split_terms, to_bool
 from .retrieval import apply_product_filters, match_product_names, search_rows
@@ -27,6 +28,9 @@ class AnalysisResult:
     comparison_table: pd.DataFrame
     review_themes: pd.DataFrame
     evidence_snippets: pd.DataFrame
+    enterprise_metadata: pd.DataFrame
+    vendor_metadata: pd.DataFrame
+    open_source_alternatives: pd.DataFrame
     required_features: list[str]
     ranking_explanation: list[str]
     risks: list[str]
@@ -83,6 +87,9 @@ def run_analysis(
     review_themes = _review_themes(evidence)
     comparison_table = _comparison_table(scored, required_features)
     recommended_tools = _recommended_table(scored)
+    enterprise_metadata = _enterprise_metadata(scored)
+    vendor_metadata = _vendor_metadata(scored)
+    open_source_alternatives = search_open_source_alternatives(query, top_k=max(5, min(top_k, 8)))
     ranking_explanation = _ranking_explanation(scored, evidence, required_features)
     risks = _risks(scored, required_features, source_notice)
     follow_ups = _follow_ups(required_features, price_ceiling)
@@ -98,8 +105,20 @@ def run_analysis(
         follow_ups=follow_ups,
         confidence=confidence,
         source_notice=source_notice,
+        enterprise_metadata=enterprise_metadata,
+        vendor_metadata=vendor_metadata,
+        open_source_alternatives=open_source_alternatives,
     )
-    context = _context_for_llm(scored, evidence, required_features, risks, confidence)
+    context = _context_for_llm(
+        scored,
+        evidence,
+        required_features,
+        risks,
+        confidence,
+        enterprise_metadata=enterprise_metadata,
+        vendor_metadata=vendor_metadata,
+        open_source_alternatives=open_source_alternatives,
+    )
     llm_result = (
         generate_answer(query=query, context=context, grounded_draft=grounded_answer)
         if use_llm
@@ -120,6 +139,9 @@ def run_analysis(
         comparison_table=comparison_table,
         review_themes=review_themes,
         evidence_snippets=evidence,
+        enterprise_metadata=enterprise_metadata,
+        vendor_metadata=vendor_metadata,
+        open_source_alternatives=open_source_alternatives,
         required_features=required_features,
         ranking_explanation=ranking_explanation,
         risks=risks,
@@ -302,6 +324,14 @@ def _comparison_table(products: pd.DataFrame, required_features: list[str]) -> p
                 "Pricing": row.get("pricing_summary", "pricing unavailable"),
                 "Pricing Source": row.get("pricing_source_type", ""),
                 "Pricing Source URLs": row.get("pricing_source_urls", ""),
+                "FactGrid Status": row.get("factgrid_status", "missing"),
+                "FactGrid Pricing": row.get("factgrid_pricing_summary", "no FactGrid pricing evidence"),
+                "FactGrid SLA": row.get("factgrid_sla_summary", "no FactGrid SLA evidence"),
+                "FactGrid API": row.get("factgrid_api_summary", "no FactGrid API evidence"),
+                "FactGrid Sources": row.get("factgrid_source_urls", ""),
+                "Pricing Conflict": bool(row.get("pricing_conflict_flag", False)),
+                "Wikidata Entity": row.get("wikidata_label", ""),
+                "Vendor Country": row.get("wikidata_country", ""),
                 "Feature source": row.get("feature_evidence_source", ""),
                 "Feature Evidence Quality": row.get("feature_evidence_quality", ""),
                 "Feature fit": f"{row.get('feature_fit_score', 0):.0%}",
@@ -322,6 +352,10 @@ def _recommended_table(products: pd.DataFrame) -> pd.DataFrame:
         "category",
         "pricing_summary",
         "pricing_source_type",
+        "factgrid_status",
+        "factgrid_pricing_summary",
+        "wikidata_label",
+        "wikidata_country",
         "present_features",
         "feature_evidence_source",
         "feature_evidence_quality",
@@ -337,6 +371,10 @@ def _recommended_table(products: pd.DataFrame) -> pd.DataFrame:
         "category": "Category",
         "pricing_summary": "Pricing Summary",
         "pricing_source_type": "Pricing Source",
+        "factgrid_status": "FactGrid Status",
+        "factgrid_pricing_summary": "FactGrid Pricing",
+        "wikidata_label": "Wikidata Entity",
+        "wikidata_country": "Vendor Country",
         "present_features": "Feature Evidence",
         "feature_evidence_source": "Feature Source",
         "feature_evidence_quality": "Feature Evidence Quality",
@@ -349,6 +387,83 @@ def _recommended_table(products: pd.DataFrame) -> pd.DataFrame:
     if "Score" in out.columns:
         out["Score"] = out["Score"].astype(float).round(3)
     return out
+
+
+def _enterprise_metadata(products: pd.DataFrame) -> pd.DataFrame:
+    if products.empty or "factgrid_status" not in products.columns:
+        return pd.DataFrame(
+            columns=[
+                "Product",
+                "FactGrid Status",
+                "Pricing",
+                "SLA",
+                "API",
+                "Source URLs",
+                "Accessed",
+                "Pricing Conflict",
+            ]
+        )
+    rows = []
+    for _, row in products.iterrows():
+        status = _clean_text(row.get("factgrid_status", "missing")).lower()
+        if not status or status == "missing":
+            continue
+        rows.append(
+            {
+                "Product": row.get("product_name", ""),
+                "FactGrid Status": row.get("factgrid_status", ""),
+                "Pricing": row.get("factgrid_pricing_summary", "no FactGrid pricing evidence"),
+                "SLA": row.get("factgrid_sla_summary", "no FactGrid SLA evidence"),
+                "API": row.get("factgrid_api_summary", "no FactGrid API evidence"),
+                "Source URLs": row.get("factgrid_source_urls", ""),
+                "Accessed": row.get("factgrid_accessed", ""),
+                "Pricing Conflict": bool(row.get("pricing_conflict_flag", False)),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _vendor_metadata(products: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "Product",
+        "Wikidata ID",
+        "Label",
+        "Entity Types",
+        "Official Website",
+        "Country",
+        "Inception",
+        "Parent Organization",
+        "Stock Ticker",
+        "Source URL",
+        "Accessed",
+        "Match Method",
+        "Match Confidence",
+    ]
+    if products.empty or "wikidata_id" not in products.columns:
+        return pd.DataFrame(columns=columns)
+    rows = []
+    for _, row in products.iterrows():
+        wikidata_id = _clean_text(row.get("wikidata_id", ""))
+        if not wikidata_id:
+            continue
+        rows.append(
+            {
+                "Product": row.get("product_name", ""),
+                "Wikidata ID": wikidata_id,
+                "Label": row.get("wikidata_label", ""),
+                "Entity Types": row.get("wikidata_entity_types", ""),
+                "Official Website": row.get("wikidata_official_website", ""),
+                "Country": row.get("wikidata_country", ""),
+                "Inception": row.get("wikidata_inception", ""),
+                "Parent Organization": row.get("wikidata_parent_org", ""),
+                "Stock Ticker": row.get("wikidata_stock_ticker", ""),
+                "Source URL": row.get("wikidata_source_url", ""),
+                "Accessed": row.get("wikidata_accessed", ""),
+                "Match Method": row.get("wikidata_match_method", ""),
+                "Match Confidence": row.get("wikidata_match_confidence", ""),
+            }
+        )
+    return pd.DataFrame(rows, columns=columns)
 
 
 def _ranking_explanation(
@@ -376,6 +491,12 @@ def _ranking_explanation(
         ),
         f"Retriever: {top.get('retrieval_backend', 'unknown')}.",
     ]
+    factgrid_status = _clean_text(top.get("factgrid_status", "missing"))
+    if factgrid_status and factgrid_status.lower() != "missing":
+        explanations.insert(
+            -1,
+            f"Enterprise metadata: FactGrid status {factgrid_status}; {top.get('factgrid_pricing_summary', 'no FactGrid pricing evidence')}.",
+        )
     return explanations
 
 
@@ -391,6 +512,10 @@ def _risks(products: pd.DataFrame, required_features: list[str], source_notice: 
         risks.append("Some mapped required features are missing for one or more shortlisted tools.")
     if _uses_review_derived_feature_evidence(products, required_features):
         risks.append("Some feature evidence comes from review metadata, not vendor-confirmed feature flags.")
+    if products.get("matched_factgrid_features", pd.Series(dtype=str)).fillna("").astype(str).str.strip().ne("").any():
+        risks.append("Some API evidence comes from FactGrid enterprise metadata, not the structured feature matrix.")
+    if products.get("pricing_conflict_flag", pd.Series(dtype=bool)).fillna(False).astype(bool).any():
+        risks.append("At least one product has a possible pricing mismatch between local pricing data and FactGrid metadata.")
     if not risks:
         risks.append("Evidence is limited to the loaded datasets and should be verified with current vendor materials.")
     return risks
@@ -442,6 +567,9 @@ def _context_for_llm(
     required_features: list[str],
     risks: list[str],
     confidence: str,
+    enterprise_metadata: pd.DataFrame | None = None,
+    vendor_metadata: pd.DataFrame | None = None,
+    open_source_alternatives: pd.DataFrame | None = None,
 ) -> str:
     context_columns = [
         "product_name",
@@ -450,6 +578,20 @@ def _context_for_llm(
         "pricing_source_type",
         "pricing_source_urls",
         "pricing_source_accessed",
+        "factgrid_status",
+        "factgrid_pricing_summary",
+        "factgrid_sla_summary",
+        "factgrid_api_summary",
+        "factgrid_source_urls",
+        "factgrid_accessed",
+        "pricing_conflict_flag",
+        "wikidata_label",
+        "wikidata_entity_types",
+        "wikidata_country",
+        "wikidata_inception",
+        "wikidata_parent_org",
+        "wikidata_stock_ticker",
+        "wikidata_source_url",
         "feature_evidence_source",
         "feature_evidence_quality",
         "matched_features",
@@ -462,11 +604,29 @@ def _context_for_llm(
         "records"
     )
     review_context = evidence.to_dict("records") if not evidence.empty else []
+    enterprise_context = (
+        enterprise_metadata.to_dict("records")
+        if enterprise_metadata is not None and not enterprise_metadata.empty
+        else []
+    )
+    vendor_context = (
+        vendor_metadata.to_dict("records")
+        if vendor_metadata is not None and not vendor_metadata.empty
+        else []
+    )
+    alternative_context = (
+        open_source_alternatives.to_dict("records")
+        if open_source_alternatives is not None and not open_source_alternatives.empty
+        else []
+    )
     return (
         f"Mapped required features: {required_features}\n"
         f"Confidence: {confidence}\n"
         f"Structured product evidence: {product_context}\n"
+        f"FactGrid enterprise metadata: {enterprise_context}\n"
+        f"Wikidata vendor facts: {vendor_context}\n"
         f"Review evidence: {review_context}\n"
+        f"Open-source alternatives: {alternative_context}\n"
         f"Known risks: {risks}"
     )
 
@@ -481,6 +641,9 @@ def _template_answer(
     follow_ups: list[str],
     confidence: str,
     source_notice: str,
+    enterprise_metadata: pd.DataFrame | None = None,
+    vendor_metadata: pd.DataFrame | None = None,
+    open_source_alternatives: pd.DataFrame | None = None,
 ) -> str:
     top = scored.iloc[0]
     shortlist = ", ".join(scored["product_name"].head(3).astype(str).tolist())
@@ -512,6 +675,28 @@ def _template_answer(
     pricing_sources = sorted(scored.get("pricing_source_type", pd.Series(dtype=str)).dropna().astype(str).unique())
     if pricing_sources:
         lines.append(f"- Pricing source type: {', '.join(pricing_sources)}.")
+    factgrid_products = (
+        enterprise_metadata["Product"].dropna().astype(str).tolist()
+        if enterprise_metadata is not None and not enterprise_metadata.empty
+        else []
+    )
+    if factgrid_products:
+        lines.append(f"- FactGrid enterprise metadata retrieved for: {', '.join(factgrid_products)}.")
+    vendor_products = (
+        vendor_metadata["Product"].dropna().astype(str).tolist()
+        if vendor_metadata is not None and not vendor_metadata.empty
+        else []
+    )
+    if vendor_products:
+        lines.append(f"- Wikidata vendor facts retrieved for: {', '.join(vendor_products)}.")
+        lines.append("- Wikidata vendor facts are public metadata, not vendor-confirmed procurement evidence.")
+
+    if open_source_alternatives is not None and not open_source_alternatives.empty:
+        lines.extend(["", "Open-source alternatives:"])
+        for _, row in open_source_alternatives.head(5).iterrows():
+            lines.append(
+                f"- {row.get('Tool', '')}: {row.get('Description', '')} Source: OpenAlternative; license: {row.get('License', 'Not listed')}."
+            )
 
     lines.extend(["", "Why this ranking:"])
     lines.extend([f"- {item}" for item in ranking_explanation])
@@ -536,6 +721,9 @@ def _empty_result(source_notice: str, required_features: list[str]) -> AnalysisR
         comparison_table=pd.DataFrame(),
         review_themes=pd.DataFrame(),
         evidence_snippets=pd.DataFrame(),
+        enterprise_metadata=pd.DataFrame(),
+        vendor_metadata=pd.DataFrame(),
+        open_source_alternatives=pd.DataFrame(),
         required_features=required_features,
         ranking_explanation=["No products matched the active retrieval filters."],
         risks=["No products matched the active retrieval filters."],

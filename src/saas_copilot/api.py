@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from .config import PATHS, RUNTIME
 from .data_loader import load_processed_or_demo
+from .enrichment import factgrid_match_count, load_open_source_alternatives, wikidata_match_count
 from .llm import active_llm_available, active_llm_label
 from .pipeline import (
     display_feature_name,
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     def status() -> dict[str, Any]:
         products, reviews, notice = load_processed_or_demo()
         chroma = _chroma_status()
+        enrichment = _enrichment_status(products)
         llm_available = active_llm_available()
         source = "Demo data" if "fictional demo data" in notice.lower() else "Kaggle/local data"
         return {
@@ -64,6 +66,7 @@ def create_app() -> FastAPI:
             "review_count": len(reviews),
             "category_count": int(products.get("category", pd.Series(dtype=str)).nunique()),
             "chroma": chroma,
+            "enrichment": enrichment,
             "llm": {
                 "label": active_llm_label(),
                 "available": llm_available,
@@ -124,6 +127,9 @@ def create_app() -> FastAPI:
             "comparison_table": _records(result.comparison_table),
             "review_themes": _records(result.review_themes),
             "evidence_snippets": _records(result.evidence_snippets),
+            "enterprise_metadata": _records(result.enterprise_metadata),
+            "vendor_metadata": _records(result.vendor_metadata),
+            "open_source_alternatives": _records(result.open_source_alternatives),
             "ranking_explanation": result.ranking_explanation,
             "risks": result.risks,
             "follow_up_questions": result.follow_up_questions,
@@ -164,14 +170,23 @@ def _compute_chroma_status() -> dict[str, Any]:
         client = chromadb.PersistentClient(path=str(PATHS.index_dir / "chroma"))
         product_count = client.get_collection("products").count()
         review_count = client.get_collection("reviews").count()
+        alternatives_count = _optional_collection_count(client, "open_source_alternatives")
         return {
             "ready": product_count > 0 and review_count > 0,
             "product_count": product_count,
             "review_count": review_count,
+            "alternatives_count": alternatives_count,
             "status": f"Ready ({product_count}/{review_count})",
         }
     except Exception as exc:
         return _chroma_sqlite_status(exc)
+
+
+def _optional_collection_count(client, name: str) -> int:
+    try:
+        return int(client.get_collection(name).count())
+    except Exception:
+        return 0
 
 
 def _chroma_sqlite_status(source_error: Exception) -> dict[str, Any]:
@@ -184,18 +199,20 @@ def _chroma_sqlite_status(source_error: Exception) -> dict[str, Any]:
                 from collections c
                 join segments s on s.collection = c.id and s.scope = 'METADATA'
                 left join embeddings e on e.segment_id = s.id
-                where c.name in ('products', 'reviews')
+                where c.name in ('products', 'reviews', 'open_source_alternatives')
                 group by c.name
                 """
             ).fetchall()
         counts = {str(name): int(count) for name, count in rows}
         product_count = counts.get("products", 0)
         review_count = counts.get("reviews", 0)
+        alternatives_count = counts.get("open_source_alternatives", 0)
         if product_count > 0 and review_count > 0:
             return {
                 "ready": True,
                 "product_count": product_count,
                 "review_count": review_count,
+                "alternatives_count": alternatives_count,
                 "status": f"Ready ({product_count}/{review_count})",
             }
     except Exception:
@@ -205,7 +222,29 @@ def _chroma_sqlite_status(source_error: Exception) -> dict[str, Any]:
         "ready": False,
         "product_count": 0,
         "review_count": 0,
+        "alternatives_count": 0,
         "status": f"Unavailable ({type(source_error).__name__})",
+    }
+
+
+def _enrichment_status(products: pd.DataFrame) -> dict[str, Any]:
+    try:
+        alternatives_count = len(load_open_source_alternatives())
+    except Exception:
+        alternatives_count = 0
+    matched_factgrid = factgrid_match_count(products)
+    matched_wikidata = wikidata_match_count(products)
+    ready = matched_factgrid > 0 or matched_wikidata > 0 or alternatives_count > 0
+    return {
+        "ready": ready,
+        "factgrid_matches": matched_factgrid,
+        "wikidata_matches": matched_wikidata,
+        "open_source_alternatives": alternatives_count,
+        "status": (
+            f"Ready (FactGrid {matched_factgrid} / Wikidata {matched_wikidata} / OSS {alternatives_count})"
+            if ready
+            else "Missing"
+        ),
     }
 
 

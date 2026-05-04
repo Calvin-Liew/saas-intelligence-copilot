@@ -6,7 +6,14 @@ const statusResponse = {
   product_count: 335,
   review_count: 4899,
   category_count: 29,
-  chroma: { ready: true, product_count: 335, review_count: 4899, status: "Ready (335/4899)" },
+  chroma: { ready: true, product_count: 335, review_count: 4899, alternatives_count: 1029, status: "Ready (335/4899)" },
+  enrichment: {
+    ready: true,
+    factgrid_matches: 21,
+    wikidata_matches: 90,
+    open_source_alternatives: 1029,
+    status: "Ready (FactGrid 21 / Wikidata 90 / OSS 1029)",
+  },
   llm: {
     label: "Groq qwen/qwen3-32b",
     available: true,
@@ -70,7 +77,28 @@ const optionsResponse = {
       max_price: 25,
       top_k: 5,
     },
+    {
+      label: "Open-source alternatives",
+      query: "Find open-source alternatives to Airtable or Notion for a team that wants self-hosted knowledge management.",
+      category: "All",
+      features: [],
+      tools: [],
+      max_price: null,
+      top_k: 5,
+    },
   ],
+};
+
+const openSourceAlternative = {
+  Tool: "Zammad",
+  Category: "Customer Support & Success",
+  Description: "Open-source helpdesk and customer support platform.",
+  License: "AGPL-3.0",
+  Stars: "4.7K",
+  Source: "https://openalternative.co/zammad",
+  "Evidence Type": "OpenAlternative CC0 directory evidence",
+  Retriever: "chroma",
+  Score: 0.81,
 };
 
 const analyzeResponse = {
@@ -126,6 +154,36 @@ const analyzeResponse = {
       retrieval_backend: "chroma",
     },
   ],
+  enterprise_metadata: [
+    {
+      Product: "Freshdesk",
+      "FactGrid Status": "VERIFIED",
+      Pricing: "FactGrid reports starting price $19 per monthly",
+      SLA: "uptime 99.9%",
+      API: "system REST",
+      "Source URLs": "https://factgrid.org/entities/freshdesk",
+      Accessed: "2026-05-03",
+      "Pricing Conflict": false,
+    },
+  ],
+  vendor_metadata: [
+    {
+      Product: "Freshdesk",
+      "Wikidata ID": "Q123456",
+      Label: "Freshdesk",
+      "Entity Types": "software as a service; customer support software",
+      "Official Website": "https://www.freshworks.com/freshdesk/",
+      Country: "United States of America",
+      Inception: "2010-01-01",
+      "Parent Organization": "Freshworks",
+      "Stock Ticker": "FRSH",
+      "Source URL": "https://www.wikidata.org/wiki/Q123456",
+      Accessed: "2026-05-03",
+      "Match Method": "official_website_domain",
+      "Match Confidence": "high",
+    },
+  ],
+  open_source_alternatives: [],
   ranking_explanation: ["Freshdesk ranks first because it matched the required support signal."],
   risks: ["Some feature evidence comes from review metadata, not vendor-confirmed feature flags."],
   follow_up_questions: ["Confirm current vendor pricing before purchase."],
@@ -139,7 +197,13 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ json: optionsResponse });
   });
   await page.route("https://ui-test-api.local/api/analyze", async (route) => {
-    await route.fulfill({ json: analyzeResponse });
+    const payload = route.request().postDataJSON() as { query?: string } | null;
+    const isOpenSourceQuery = payload?.query?.toLowerCase().includes("open-source");
+    await route.fulfill({
+      json: isOpenSourceQuery
+        ? { ...analyzeResponse, open_source_alternatives: [openSourceAlternative] }
+        : analyzeResponse,
+    });
   });
 });
 
@@ -153,6 +217,8 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await expect(page.getByText("Live RAG Demo")).toBeVisible();
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByText("Products")).toBeVisible();
+  await expect(page.getByText("Enrichment")).toBeVisible();
+  await expect(page.getByText("Ready (FactGrid 21 / Wikidata 90 / OSS 1029)")).toBeVisible();
   await expect(page.getByText("335", { exact: true })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
   await expect(page.getByText("Scenario")).toBeVisible();
@@ -209,8 +275,12 @@ test("runs analysis and renders cards, tabs, tables, and evidence", async ({ pag
   await expect(page.getByText("Direct answer: Freshdesk")).toBeVisible();
   await expect(page.getByLabel("Evidence used in answer")).toContainText("Structured Product Evidence");
   await expect(page.getByLabel("Evidence used in answer")).toContainText("Review Evidence");
+  await expect(page.getByLabel("Evidence used in answer")).toContainText("Enterprise Metadata");
+  await expect(page.getByLabel("Evidence used in answer")).toContainText("Vendor Facts");
+  await expect(page.getByLabel("Evidence used in answer")).not.toContainText("Open-Source Alternatives");
   await expect(page.getByLabel("Evidence used in answer")).toContainText("Useful support desk");
   await expect(page.getByRole("button", { name: "Scorecard (1)" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Alternatives/i })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Scorecard (1)" }).click();
   await expect(page.getByRole("table")).toContainText("supplemental");
@@ -220,7 +290,20 @@ test("runs analysis and renders cards, tabs, tables, and evidence", async ({ pag
   );
 
   await page.getByRole("button", { name: "Evidence (1)" }).click();
+  await expect(page.getByText("FactGrid Enterprise Metadata")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vendor Facts" })).toBeVisible();
+  await expect(page.getByText("Wikidata vendor facts are public metadata")).toBeVisible();
   await expect(page.getByText("easy ticketing")).toBeVisible();
+});
+
+test("shows open-source alternatives only when the response includes them", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Open-source alternatives" }).click();
+  await page.getByRole("button", { name: /Run analysis/i }).click();
+
+  await page.getByRole("button", { name: "Alternatives (1)" }).click();
+  await expect(page.getByRole("table")).toContainText("Zammad");
 });
 
 test("posts the unchanged analyze payload contract", async ({ page }) => {

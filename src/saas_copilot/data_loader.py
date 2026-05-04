@@ -10,6 +10,12 @@ import requests
 
 from .config import PATHS, RUNTIME
 from .demo_data import DEMO_NOTICE, demo_features, demo_pricing, demo_products, demo_reviews
+from .enrichment import (
+    apply_factgrid_enrichment,
+    apply_wikidata_enrichment,
+    ensure_factgrid_columns,
+    ensure_wikidata_columns,
+)
 from .normalizer import compact_text, normalize_key, normalize_name, to_bool, to_number
 
 
@@ -46,6 +52,10 @@ PROCESSED_ARTIFACT_FILES = [
     "review_chunks.csv",
     "unmatched_records.csv",
     "evaluation_results.csv",
+    "factgrid_enrichment.csv",
+    "wikidata_vendor_facts.csv",
+    "open_source_alternatives.csv",
+    "enrichment_qa.csv",
 ]
 
 _PROCESSED_CACHE: dict[
@@ -476,6 +486,8 @@ def build_product_master(
         lambda row: _present_features(row, feature_columns, review_feature_columns),
         axis=1,
     )
+    master = apply_factgrid_enrichment(master)
+    master = apply_wikidata_enrichment(master)
     master["product_doc"] = master.apply(_product_doc, axis=1)
 
     review_chunks = build_review_chunks(reviews)
@@ -699,6 +711,8 @@ def load_processed_or_demo(paths=PATHS) -> tuple[pd.DataFrame, pd.DataFrame, str
             products["pricing_source_type"] = products["pricing_source_type"].fillna("missing")
         if "feature_evidence_quality" in products.columns:
             products["feature_evidence_quality"] = products["feature_evidence_quality"].fillna("missing")
+        products = ensure_factgrid_columns(products)
+        products = ensure_wikidata_columns(products)
         if "data_source" in products.columns and products["data_source"].eq("fictional_demo").all():
             result = (products, reviews, DEMO_NOTICE)
             _PROCESSED_CACHE[cache_key] = result
@@ -885,7 +899,46 @@ def _product_doc(row: pd.Series) -> str:
             f"Feature evidence source: {row.get('feature_evidence_source', '')}",
             f"Feature evidence quality: {row.get('feature_evidence_quality', '')}",
             f"Key features: {row.get('present_features', '')}",
+            _factgrid_doc(row),
+            _wikidata_doc(row),
             review_text,
+        ]
+    )
+
+
+def _factgrid_doc(row: pd.Series) -> str:
+    status = str(row.get("factgrid_status", "") or "").strip().lower()
+    if not status or status == "missing":
+        return ""
+    return compact_text(
+        [
+            f"FactGrid status: {row.get('factgrid_status', '')}",
+            f"FactGrid pricing: {row.get('factgrid_pricing_summary', '')}",
+            f"FactGrid SLA: {row.get('factgrid_sla_summary', '')}",
+            f"FactGrid API: {row.get('factgrid_api_summary', '')}",
+            f"FactGrid source URLs: {row.get('factgrid_source_urls', '')}",
+            f"FactGrid accessed: {row.get('factgrid_accessed', '')}",
+            f"Pricing conflict flag: {row.get('pricing_conflict_flag', False)}",
+        ]
+    )
+
+
+def _wikidata_doc(row: pd.Series) -> str:
+    wikidata_id = str(row.get("wikidata_id", "") or "").strip()
+    if not wikidata_id:
+        return ""
+    return compact_text(
+        [
+            f"Wikidata ID: {wikidata_id}",
+            f"Wikidata label: {row.get('wikidata_label', '')}",
+            f"Wikidata entity types: {row.get('wikidata_entity_types', '')}",
+            f"Wikidata official website: {row.get('wikidata_official_website', '')}",
+            f"Wikidata country: {row.get('wikidata_country', '')}",
+            f"Wikidata inception: {row.get('wikidata_inception', '')}",
+            f"Wikidata parent organization: {row.get('wikidata_parent_org', '')}",
+            f"Wikidata stock ticker: {row.get('wikidata_stock_ticker', '')}",
+            f"Wikidata source URL: {row.get('wikidata_source_url', '')}",
+            f"Wikidata accessed: {row.get('wikidata_accessed', '')}",
         ]
     )
 

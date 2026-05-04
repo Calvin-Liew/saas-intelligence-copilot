@@ -28,6 +28,9 @@ def test_status_endpoint_reports_counts() -> None:
     assert "llm" in data
     assert "status" in data["llm"]
     assert "chroma" in data
+    assert "enrichment" in data
+    assert "factgrid_matches" in data["enrichment"]
+    assert "wikidata_matches" in data["enrichment"]
 
 
 def test_chroma_status_uses_sqlite_fallback_after_client_error(monkeypatch, tmp_path) -> None:
@@ -69,6 +72,7 @@ def test_chroma_status_uses_sqlite_fallback_after_client_error(monkeypatch, tmp_
         "ready": True,
         "product_count": 335,
         "review_count": 4899,
+        "alternatives_count": 0,
         "status": "Ready (335/4899)",
     }
     api_module._CHROMA_STATUS_CACHE = None
@@ -81,7 +85,7 @@ def test_options_endpoint_includes_feature_labels() -> None:
     assert "Customer Support" in data["categories"]
     assert any(feature["id"] == "ticket_creation_and_assignment" for feature in data["features"])
     assert any("review-derived" in feature["label"] for feature in data["features"])
-    assert len(data["demo_presets"]) == 7
+    assert len(data["demo_presets"]) == 8
     assert data["demo_presets"][0]["label"] == "Support desk review risk"
 
 
@@ -145,10 +149,57 @@ def test_analyze_endpoint_serializes_tables_and_provenance() -> None:
     assert data["llm"]["status"] == "disabled"
     assert data["recommended_tools"]
     assert data["comparison_table"]
+    assert "enterprise_metadata" in data
+    assert "vendor_metadata" in data
+    assert "open_source_alternatives" in data
+    assert data["open_source_alternatives"] == []
     first = data["comparison_table"][0]
     assert first["Pricing Source"] == "supplemental"
     assert first["Feature Evidence Quality"] == "review_derived"
     assert not _contains_nan(data["comparison_table"])
+
+
+def test_vendor_metadata_serializes_null_safe_values() -> None:
+    response = client.post(
+        "/api/analyze",
+        json={
+            "query": "Compare Salesforce, HubSpot, and Pipedrive for a growing sales team.",
+            "category": "Crm",
+            "max_monthly_price": None,
+            "required_features": [],
+            "additional_required_features": "",
+            "compare_tools": ["Salesforce", "HubSpot", "Pipedrive"],
+            "additional_tool_names": "",
+            "top_k": 3,
+            "use_llm": False,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "vendor_metadata" in data
+    assert not _contains_nan(data["vendor_metadata"])
+
+
+def test_open_source_alternatives_require_explicit_api_intent() -> None:
+    response = client.post(
+        "/api/analyze",
+        json={
+            "query": "Find open-source alternatives to Airtable or Notion for self-hosted knowledge management.",
+            "category": "All",
+            "max_monthly_price": None,
+            "required_features": [],
+            "additional_required_features": "",
+            "compare_tools": [],
+            "additional_tool_names": "",
+            "top_k": 5,
+            "use_llm": False,
+        },
+    )
+    assert response.status_code == 200
+    alternatives = response.json()["open_source_alternatives"]
+    assert alternatives
+    assert all(row["Evidence Type"] == "OpenAlternative CC0 directory evidence" for row in alternatives)
+    assert not _contains_nan(alternatives)
 
 
 def test_support_analysis_returns_review_themes_and_evidence_snippets() -> None:

@@ -87,8 +87,31 @@ METADATA_COLUMNS = {
     "pricing_source_type",
     "pricing_source_urls",
     "pricing_source_accessed",
+    "factgrid_slug",
+    "factgrid_status",
+    "factgrid_pricing_summary",
+    "factgrid_starting_price_usd",
+    "factgrid_sla_summary",
+    "factgrid_api_summary",
+    "factgrid_source_urls",
+    "factgrid_accessed",
+    "pricing_conflict_flag",
+    "wikidata_id",
+    "wikidata_label",
+    "wikidata_entity_types",
+    "wikidata_official_website",
+    "wikidata_country",
+    "wikidata_inception",
+    "wikidata_parent_org",
+    "wikidata_stock_ticker",
+    "wikidata_source_url",
+    "wikidata_accessed",
+    "wikidata_match_method",
+    "wikidata_match_confidence",
     "product_doc",
 }
+
+FACTGRID_API_FEATURES = {"api", "api_access"}
 
 
 def feature_columns(products: pd.DataFrame) -> list[str]:
@@ -224,11 +247,19 @@ def score_products(
 
     scored = products.copy()
     scored["matched_features"] = scored.apply(
-        lambda row: ", ".join([feature for feature in required_features if to_bool(row.get(feature, 0))]),
+        lambda row: ", ".join(
+            [
+                _feature_match_label(row, feature)
+                for feature in required_features
+                if _feature_matches(row, feature)
+            ]
+        ),
         axis=1,
     )
     scored["missing_features"] = scored.apply(
-        lambda row: ", ".join([feature for feature in required_features if not to_bool(row.get(feature, 0))]),
+        lambda row: ", ".join(
+            [feature for feature in required_features if not _feature_matches(row, feature)]
+        ),
         axis=1,
     )
     scored["feature_fit_score"] = scored.apply(
@@ -254,6 +285,24 @@ def score_products(
         ),
         axis=1,
     )
+    scored["matched_factgrid_features"] = scored.apply(
+        lambda row: ", ".join(
+            [
+                _feature_match_label(row, feature)
+                for feature in required_features
+                if _factgrid_feature_matches(row, feature)
+            ]
+        ),
+        axis=1,
+    )
+    factgrid_match_mask = scored["matched_factgrid_features"].fillna("").astype(str).str.strip().ne("")
+    if factgrid_match_mask.any():
+        scored.loc[factgrid_match_mask, "feature_evidence_source"] = scored.loc[
+            factgrid_match_mask, "feature_evidence_source"
+        ].fillna("").astype(str).apply(_append_factgrid_source)
+        scored.loc[factgrid_match_mask, "feature_evidence_quality"] = scored.loc[
+            factgrid_match_mask, "feature_evidence_quality"
+        ].fillna("").astype(str).apply(_mixed_feature_quality)
     scored["pricing_score"] = scored.apply(
         lambda row: _pricing_score(row, max_monthly_price), axis=1
     )
@@ -273,8 +322,47 @@ def score_products(
 def _feature_score(row: pd.Series, required_features: list[str]) -> float:
     if not required_features:
         return 1.0
-    matched = sum(1 for feature in required_features if to_bool(row.get(feature, 0)))
+    matched = sum(1 for feature in required_features if _feature_matches(row, feature))
     return matched / len(required_features)
+
+
+def _feature_matches(row: pd.Series, feature: str) -> bool:
+    return to_bool(row.get(feature, 0)) or _factgrid_feature_matches(row, feature)
+
+
+def _factgrid_feature_matches(row: pd.Series, feature: str) -> bool:
+    key = normalize_key(feature)
+    if key in FACTGRID_API_FEATURES:
+        summary = str(row.get("factgrid_api_summary", "") or "").strip().lower()
+        return bool(summary and summary != "no factgrid api evidence")
+    return False
+
+
+def _feature_match_label(row: pd.Series, feature: str) -> str:
+    if _factgrid_feature_matches(row, feature) and not to_bool(row.get(feature, 0)):
+        return f"{feature} (FactGrid API metadata)"
+    return feature
+
+
+def _append_factgrid_source(source: str) -> str:
+    source = source.strip()
+    factgrid_source = "FactGrid enterprise metadata"
+    if not source:
+        return factgrid_source
+    if factgrid_source.lower() in source.lower():
+        return source
+    return f"{source}; {factgrid_source}"
+
+
+def _mixed_feature_quality(quality: str) -> str:
+    quality = quality.strip() or "missing"
+    if quality == "missing":
+        return "factgrid"
+    if quality == "factgrid":
+        return quality
+    if quality == "mixed":
+        return quality
+    return "mixed"
 
 
 def _pricing_score(row: pd.Series, max_monthly_price: float | None) -> float:

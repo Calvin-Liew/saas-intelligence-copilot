@@ -16,6 +16,10 @@ ARTIFACT_FILES = [
     PATHS.review_chunks,
     PATHS.unmatched_records,
     PATHS.processed_dir / "evaluation_results.csv",
+    PATHS.factgrid_enrichment,
+    PATHS.wikidata_vendor_facts,
+    PATHS.open_source_alternatives,
+    PATHS.enrichment_qa,
 ]
 
 

@@ -13,6 +13,15 @@ export interface ChromaState {
   ready: boolean;
   product_count: number;
   review_count: number;
+  alternatives_count?: number;
+  status: string;
+}
+
+export interface EnrichmentState {
+  ready: boolean;
+  factgrid_matches: number;
+  wikidata_matches: number;
+  open_source_alternatives: number;
   status: string;
 }
 
@@ -23,6 +32,7 @@ export interface ApiStatus {
   review_count: number;
   category_count: number;
   chroma: ChromaState;
+  enrichment: EnrichmentState;
   llm: LlmState;
 }
 
@@ -71,6 +81,9 @@ export interface AnalysisResult {
   comparison_table: Dict[];
   review_themes: Dict[];
   evidence_snippets: Dict[];
+  enterprise_metadata: Dict[];
+  vendor_metadata: Dict[];
+  open_source_alternatives: Dict[];
   ranking_explanation: string[];
   risks: string[];
   follow_up_questions: string[];

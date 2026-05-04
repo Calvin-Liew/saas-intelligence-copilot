@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from saas_copilot.data_loader import load_processed_or_demo  # noqa: E402
+from saas_copilot.enrichment import search_open_source_alternatives, wikidata_match_count  # noqa: E402
 from saas_copilot.config import RUNTIME  # noqa: E402
 from saas_copilot.llm import active_llm_available, active_llm_label  # noqa: E402
 from saas_copilot.pipeline import run_analysis  # noqa: E402
@@ -43,6 +44,7 @@ def main() -> None:
 
     checks = [
         check_processed_data(production=args.production),
+        check_enrichment_data(),
         check_chroma_counts(),
         check_llm_provider(production=args.production),
         check_chroma_retrieval(),
@@ -53,7 +55,7 @@ def main() -> None:
         checks.append(check_api(args.api_url) if args.production else check_streamlit(args.streamlit_url))
 
     mode = "Production" if args.production else "Local"
-    print(f"\nSaaS Intelligence Copilot {mode} Smoke Check")
+    print(f"\nSaaSScout {mode} Smoke Check")
     print("=" * 42)
     for check in checks:
         status = "PASS" if check.passed else "FAIL"
@@ -95,10 +97,45 @@ def check_chroma_counts() -> Check:
         client = chromadb.PersistentClient(path=str(ROOT / "data" / "indexes" / "chroma"))
         product_count = client.get_collection("products").count()
         review_count = client.get_collection("reviews").count()
-        passed = product_count >= 300 and review_count >= 4000
-        return Check("Chroma indexes", passed, f"products={product_count}, reviews={review_count}")
+        try:
+            alternative_count = client.get_collection("open_source_alternatives").count()
+        except Exception:
+            alternative_count = 0
+        passed = product_count >= 300 and review_count >= 4000 and alternative_count >= 100
+        return Check("Chroma indexes", passed, f"products={product_count}, reviews={review_count}, alternatives={alternative_count}")
     except Exception as exc:
         return Check("Chroma indexes", False, f"{type(exc).__name__}: {exc}")
+
+
+def check_enrichment_data() -> Check:
+    try:
+        products, _, _ = load_processed_or_demo()
+        factgrid_path = ROOT / "data" / "processed" / "factgrid_enrichment.csv"
+        wikidata_path = ROOT / "data" / "processed" / "wikidata_vendor_facts.csv"
+        alternatives_path = ROOT / "data" / "processed" / "open_source_alternatives.csv"
+        factgrid = pd.read_csv(factgrid_path) if factgrid_path.exists() else pd.DataFrame()
+        wikidata = pd.read_csv(wikidata_path) if wikidata_path.exists() else pd.DataFrame()
+        alternatives = pd.read_csv(alternatives_path) if alternatives_path.exists() else pd.DataFrame()
+        matched_factgrid = int(products.get("factgrid_status", pd.Series(dtype=str)).fillna("missing").ne("missing").sum())
+        matched_wikidata = wikidata_match_count(products)
+        passed = (
+            len(factgrid) >= 30
+            and len(wikidata) >= 25
+            and len(alternatives) >= 100
+            and matched_factgrid >= 5
+            and matched_wikidata >= 25
+        )
+        return Check(
+            "enrichment data",
+            passed,
+            (
+                f"factgrid_rows={len(factgrid)}, factgrid_matches={matched_factgrid}, "
+                f"wikidata_rows={len(wikidata)}, wikidata_matches={matched_wikidata}, "
+                f"alternatives={len(alternatives)}"
+            ),
+        )
+    except Exception as exc:
+        return Check("enrichment data", False, f"{type(exc).__name__}: {exc}")
 
 
 def check_llm_provider(production: bool = False) -> Check:
@@ -146,11 +183,13 @@ def check_chroma_retrieval() -> Check:
         )
         product_backends = {result.row.get("retrieval_backend") for result in product_results}
         review_backends = {result.row.get("retrieval_backend") for result in review_results}
-        passed = "chroma" in product_backends and "chroma" in review_backends
+        alternatives = search_open_source_alternatives("Find open-source alternatives to Airtable or Notion", top_k=3)
+        alternative_backends = set(alternatives.get("Retriever", pd.Series(dtype=str)).dropna().astype(str))
+        passed = "chroma" in product_backends and "chroma" in review_backends and "chroma" in alternative_backends
         return Check(
             "Chroma retrieval",
             passed,
-            f"product_backends={sorted(product_backends)}, review_backends={sorted(review_backends)}",
+            f"product_backends={sorted(product_backends)}, review_backends={sorted(review_backends)}, alternative_backends={sorted(alternative_backends)}",
         )
     except Exception as exc:
         return Check("Chroma retrieval", False, f"{type(exc).__name__}: {exc}")

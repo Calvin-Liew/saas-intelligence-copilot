@@ -6,6 +6,12 @@ SaaSScout is a RAG-based software evaluation assistant for product analysts, pro
 
 The app can run locally from Kaggle-processed files and Chroma indexes, or online from a packaged deployment artifact. Fictional demo data exists only as a development fallback.
 
+## Live Demo
+
+- Frontend: `https://saas-intelligence-copilot-calvi.netlify.app`
+- Backend health: `https://saas-intelligence-copilot-api.onrender.com/health`
+- Backend status: `https://saas-intelligence-copilot-api.onrender.com/api/status`
+
 ## Problem
 
 SaaS evaluation is fragmented across vendor pages, pricing sheets, review sites, and spreadsheets. This project helps shortlist tools by combining structured filters with semantic retrieval over product descriptions and review snippets.
@@ -25,6 +31,9 @@ Supplemental data:
 
 - `data/supplemental/support_tool_pricing.csv` adds source-backed pricing evidence for review-only support tools that are missing from the CompareEdge pricing table.
 - Capterra support-review feature columns are aggregated into review-derived support feature signals and labeled separately from the structured CompareEdge feature matrix.
+- FactGrid Open Data API (`https://factgrid.org/api-docs/`) adds no-key enterprise metadata, including verification status, pricing cross-checks, SLA/API notes, source URLs, and audit dates. FactGrid publishes this API data under CC BY 4.0 metadata.
+- Wikidata Query Service (`https://query.wikidata.org/sparql`) adds CC0 public vendor facts such as entity type, official website, country, inception date, parent organization, and stock ticker where domain-verified matches are available.
+- OpenAlternative (`https://github.com/piotrkulpinski/openalternative`) adds CC0 open-source alternative discovery as a separate evidence lane for open-source, self-hosted, or free-alternative queries.
 
 ## Architecture
 
@@ -34,6 +43,7 @@ Core implementation:
 
 - `src/saas_copilot/data_loader.py`: schema discovery, canonicalization, joins, QA unmatched records
 - `src/saas_copilot/retrieval.py`: Chroma vector retrieval with TF-IDF fallback and metadata filtering
+- `src/saas_copilot/enrichment.py`: FactGrid, Wikidata, and OpenAlternative enrichment loading, merging, and alternative search
 - `src/saas_copilot/scoring.py`: feature, pricing, review, category, and final scores
 - `src/saas_copilot/pipeline.py`: query workflow and answer assembly
 - `src/saas_copilot/api.py`: FastAPI service for Render deployment
@@ -59,8 +69,11 @@ The local demo currently uses the downloaded Kaggle datasets and processed index
 - `0` unmatched rows
 - `29` categories
 - `0` products with `pricing unavailable` after supplemental support-tool pricing enrichment
+- `21` products matched to FactGrid enterprise metadata
+- `102` products matched to Wikidata vendor facts using official-website domain verification
+- `1,029` OpenAlternative rows for open-source/self-hosted alternative discovery
 - Support-ticket feature gaps are filled with clearly labeled review-derived Capterra support feature signals
-- Chroma collections for product and review retrieval
+- Chroma collections for product, review, and open-source alternative retrieval
 - Local Qwen via Ollama: `qwen2.5:1.5b`
 - Online target: Groq `qwen/qwen3-32b`
 
@@ -70,7 +83,7 @@ For the React + FastAPI local demo, start the backend first:
 
 ```powershell
 pip install -r requirements.txt
-python scripts/download_kaggle.py; python scripts/ingest.py; python scripts/build_chroma.py; python scripts/evaluate.py
+python scripts/download_kaggle.py; python scripts/enrich_online_sources.py; python scripts/ingest.py; python scripts/build_chroma.py; python scripts/evaluate.py
 $env:PYTHONPATH="src"; uvicorn saas_copilot.api:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -91,10 +104,11 @@ Open `http://localhost:5173`. The frontend calls `http://localhost:8000` by defa
 | `Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.` | Explicit comparison, supplemental pricing provenance, review-derived support feature signals |
 | `Recommend a CRM for a small team that needs automation, workflow builder, reporting, and API integrations under $30.` | Pricing filters, structured feature scoring, and budget-aware ranking |
 | `Find affordable project management platforms with automation, reporting analytics, templates, and API integrations.` | Chroma product discovery plus structured feature fit |
-| `Compare Salesforce, HubSpot, and Pipedrive for a growing sales team that cares about automation, reporting, workflow builder, and pricing.` | Explicit vendor comparison with scorecard evidence |
+| `Compare Salesforce, HubSpot, and Pipedrive for a growing sales team that cares about automation, reporting, workflow builder, and pricing.` | Explicit vendor comparison with scorecard evidence and Wikidata vendor facts |
 | `Find website builders for a startup launch that need API access, analytics, templates, SEO tools, and custom domains.` | Metadata category filter plus feature-matrix matching |
 | `Recommend a password manager with SSO, secure sharing, 2FA/MFA, breach alerts, and strong team security.` | Security-focused feature search with readable feature labels |
 | `Create a procurement-style recommendation memo for choosing a customer support platform for a 200-person company.` | Memo-style answer, review snippets, and follow-up procurement checks |
+| `Find open-source alternatives to Airtable or Notion for a team that wants self-hosted knowledge management.` | OpenAlternative evidence lane without polluting normal SaaS recommendations |
 
 ## How to Run
 
@@ -127,6 +141,7 @@ Download Kaggle data, then ingest:
 ```powershell
 pip install -r requirements.txt
 python scripts/download_kaggle.py
+python scripts/enrich_online_sources.py
 python scripts/ingest.py
 ```
 
@@ -158,16 +173,16 @@ LLM_PROVIDER = "groq"
 GROQ_API_KEY = "..."
 GROQ_MODEL = "qwen/qwen3-32b"
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-DATA_ARTIFACT_URL = "https://github.com/<user>/<repo>/releases/download/v1/saas-demo-data-v1.zip"
+DATA_ARTIFACT_URL = "https://github.com/Calvin-Liew/saas-intelligence-copilot/releases/download/v1/saas-demo-data-v1.zip"
 USE_CHROMA = "1"
 PRODUCTION_MODE = "1"
-FRONTEND_ORIGINS = "https://<netlify-site>.netlify.app"
+FRONTEND_ORIGINS = "https://saas-intelligence-copilot-calvi.netlify.app"
 ```
 
 Configure Netlify with:
 
 ```text
-VITE_API_BASE_URL=https://<render-api>.onrender.com
+VITE_API_BASE_URL=https://saas-intelligence-copilot-api.onrender.com
 ```
 
 Smoke test the full Chroma + Qwen path:
@@ -189,6 +204,8 @@ The production path is a React frontend on Netlify and a FastAPI backend on Rend
 Build the deploy artifact:
 
 ```powershell
+python scripts/enrich_online_sources.py
+python scripts/ingest.py
 python scripts/evaluate.py
 python scripts/build_chroma.py
 python scripts/package_artifact.py
@@ -199,9 +216,11 @@ Upload `data/artifacts/saas-demo-data-v1.zip` to a GitHub Release.
 Render backend:
 
 - service config: `render.yaml`
+- production URL: `https://saas-intelligence-copilot-api.onrender.com`
 - build command: `pip install -r requirements.txt`
 - start command: `PYTHONPATH=src uvicorn saas_copilot.api:app --host 0.0.0.0 --port $PORT`
 - required secrets: `GROQ_API_KEY`, `DATA_ARTIFACT_URL`, and `FRONTEND_ORIGINS`
+- artifact URL: `https://github.com/Calvin-Liew/saas-intelligence-copilot/releases/download/v1/saas-demo-data-v1.zip`
 
 Netlify frontend:
 
@@ -210,7 +229,7 @@ Netlify frontend:
 - config: `netlify.toml`
 - build command: `npm run build`
 - publish directory: `frontend/dist`
-- required env var: `VITE_API_BASE_URL=https://<render-api>.onrender.com`
+- required env var: `VITE_API_BASE_URL=https://saas-intelligence-copilot-api.onrender.com`
 
 Frontend verification:
 
@@ -225,7 +244,7 @@ npm run build
 Set the frontend API URL after the Render backend is live:
 
 ```powershell
-netlify env:set VITE_API_BASE_URL https://<render-api>.onrender.com --context production --scope builds
+netlify env:set VITE_API_BASE_URL https://saas-intelligence-copilot-api.onrender.com --context production --scope builds
 npm run build --prefix frontend
 netlify deploy --prod --dir frontend/dist
 ```
@@ -233,8 +252,8 @@ netlify deploy --prod --dir frontend/dist
 Production smoke check:
 
 ```powershell
-python scripts/smoke_all.py --production --api-url https://<render-api>.onrender.com
-Invoke-RestMethod https://<render-api>.onrender.com/health
+python scripts/smoke_all.py --production --api-url https://saas-intelligence-copilot-api.onrender.com
+Invoke-RestMethod https://saas-intelligence-copilot-api.onrender.com/health
 ```
 
 Groq rate limits or API failures degrade to the grounded template response with a visible warning, so the app remains usable without inventing missing evidence.
@@ -266,6 +285,9 @@ Review each result for:
 - Support-ticket products from the Capterra dataset are review-only when they do not appear in the structured CompareEdge product universe, so pricing/features may depend on supplemental pricing and review-derived feature signals.
 - Supplemental support-tool pricing is source-backed but still not real-time; quote-based and region-specific plans must be verified with vendors.
 - Review-derived support feature signals are not the same as vendor-confirmed feature flags. They indicate positive feature evidence observed across Capterra review metadata and carry lower confidence than structured CompareEdge feature flags.
+- FactGrid metadata is additive cross-check evidence. It does not overwrite Kaggle/local pricing, and any source conflicts are shown as provenance risks.
+- Wikidata vendor facts are public metadata, not vendor-confirmed procurement evidence. They are joined only when Wikidata official website domains match local product website domains.
+- OpenAlternative results are directory evidence for open-source alternatives, not vendor-confirmed SaaS pricing or feature evidence. They appear only when the query asks for open-source, self-hosted, or replacement-style options.
 - The MVP does not perform legal, security, compliance, or ROI approval.
 
 ## Future Work

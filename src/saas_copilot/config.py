@@ -22,6 +22,10 @@ class DataPaths:
     review_chunks: Path = PROJECT_ROOT / "data" / "processed" / "review_chunks.csv"
     unmatched_records: Path = PROJECT_ROOT / "data" / "processed" / "unmatched_records.csv"
     supplemental_pricing: Path = PROJECT_ROOT / "data" / "supplemental" / "support_tool_pricing.csv"
+    factgrid_enrichment: Path = PROJECT_ROOT / "data" / "processed" / "factgrid_enrichment.csv"
+    wikidata_vendor_facts: Path = PROJECT_ROOT / "data" / "processed" / "wikidata_vendor_facts.csv"
+    open_source_alternatives: Path = PROJECT_ROOT / "data" / "processed" / "open_source_alternatives.csv"
+    enrichment_qa: Path = PROJECT_ROOT / "data" / "processed" / "enrichment_qa.csv"
 
 
 @dataclass(frozen=True)

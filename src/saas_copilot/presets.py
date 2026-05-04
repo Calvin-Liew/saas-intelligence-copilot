@@ -65,4 +65,13 @@ DEMO_PRESETS = [
         "max_price": None,
         "top_k": 5,
     },
+    {
+        "label": "Open-source alternatives",
+        "query": "Find open-source alternatives to Airtable or Notion for a team that wants self-hosted knowledge management.",
+        "category": "All",
+        "features": [],
+        "tools": [],
+        "max_price": None,
+        "top_k": 5,
+    },
 ]

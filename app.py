@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
 st.set_page_config(
-    page_title="SaaS Intelligence Copilot",
+    page_title="SaaSScout",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -134,7 +134,7 @@ def style_missing_data(frame: pd.DataFrame):
     return frame.style.apply(lambda _: styles, axis=None)
 
 
-st.title("SaaS Intelligence Copilot")
+st.title("SaaSScout")
 
 llm_label = active_llm_label()
 try:

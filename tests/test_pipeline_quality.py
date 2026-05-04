@@ -43,3 +43,12 @@ def test_review_derived_only_confidence_is_penalized() -> None:
 
     assert structured == "high"
     assert review_derived == "medium"
+
+
+def test_factgrid_feature_match_adds_risk() -> None:
+    products = _products("mixed", "structured feature matrix; FactGrid enterprise metadata")
+    products["matched_factgrid_features"] = "api (FactGrid API metadata)"
+
+    risks = pipeline._risks(products, ["api"], "Using processed data.")
+
+    assert "Some API evidence comes from FactGrid enterprise metadata, not the structured feature matrix." in risks
