@@ -23,7 +23,6 @@ import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, DemoPreset,
 type Tab = "answer" | "scorecard" | "reviews" | "evidence" | "alternatives";
 type CellValue = string | number | boolean | null | undefined;
 const SPLASH_MIN_MS = 950;
-const SPLASH_MAX_MS = 2400;
 
 const fallbackOptions: ApiOptions = {
   categories: ["All", "Crm", "Customer Support", "Password Managers", "Project Management", "Website Builders"],
@@ -87,28 +86,10 @@ const fallbackOptions: ApiOptions = {
   ],
 };
 
-const fallbackStatus: ApiStatus = {
-  source: "Kaggle/local data",
-  source_notice: "Showing packaged demo counts while the API starts.",
-  product_count: 335,
-  review_count: 4899,
-  category_count: 29,
-  chroma: { ready: false, product_count: 335, review_count: 4899, status: "Checking index" },
-  enrichment: { ready: false, factgrid_matches: 0, wikidata_matches: 0, open_source_alternatives: 0, status: "Checking sources" },
-  llm: {
-    label: "Checking provider",
-    available: false,
-    provider: "template",
-    model: "grounded-template",
-    status: "loading",
-    warning: "",
-  },
-};
-
 const initialPreset = fallbackOptions.demo_presets[0];
 
 export default function App() {
-  const [status, setStatus] = useState<ApiStatus | null>(fallbackStatus);
+  const [status, setStatus] = useState<ApiStatus | null>(null);
   const [options, setOptions] = useState<ApiOptions>(fallbackOptions);
   const [selectedPreset, setSelectedPreset] = useState(0);
   const [query, setQuery] = useState(initialPreset.query);
@@ -125,6 +106,8 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showStartupSplash, setShowStartupSplash] = useState(true);
+  const [startupError, setStartupError] = useState("");
+  const [startupAttempt, setStartupAttempt] = useState(0);
   const [error, setError] = useState("");
   const featureLabelById = useMemo(
     () => new Map(options.features.map((feature) => [feature.id, readableFeatureLabel(feature.label)])),
@@ -133,46 +116,41 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
-    let pendingStartupCalls = 2;
+    let splashTimer: number | undefined;
     const startedAt = Date.now();
 
-    function closeSplash() {
+    setShowStartupSplash(true);
+    setStartupError("");
+    setError("");
+
+    function openWorkspace() {
       const remainingDelay = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt));
-      window.setTimeout(() => {
+      splashTimer = window.setTimeout(() => {
         if (mounted) setShowStartupSplash(false);
       }, remainingDelay);
     }
 
-    function markStartupCallDone() {
-      pendingStartupCalls -= 1;
-      if (pendingStartupCalls <= 0) {
-        window.clearTimeout(maxSplashTimer);
-        closeSplash();
+    async function loadStartupData() {
+      try {
+        const [statusResult, optionResult] = await Promise.all([getStatus(), getOptions()]);
+        if (!mounted) return;
+        setStatus(statusResult);
+        setOptions(optionResult);
+        setUseLlm(Boolean(statusResult.llm.available));
+        openWorkspace();
+      } catch (err) {
+        if (!mounted) return;
+        setStartupError(err instanceof Error ? err.message : String(err));
       }
     }
 
-    const maxSplashTimer = window.setTimeout(closeSplash, SPLASH_MAX_MS);
-
-    getStatus()
-      .then((statusResult) => {
-        setStatus(statusResult);
-        setUseLlm(Boolean(statusResult.llm.available));
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-      .finally(markStartupCallDone);
-
-    getOptions()
-      .then((optionResult) => {
-        setOptions(optionResult);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-      .finally(markStartupCallDone);
+    void loadStartupData();
 
     return () => {
       mounted = false;
-      window.clearTimeout(maxSplashTimer);
+      if (splashTimer) window.clearTimeout(splashTimer);
     };
-  }, []);
+  }, [startupAttempt]);
 
   function applyPreset(preset: DemoPreset | undefined, optionState = options) {
     if (!preset) return;
@@ -214,6 +192,10 @@ export default function App() {
     }
   }
 
+  function retryStartup() {
+    setStartupAttempt((attempt) => attempt + 1);
+  }
+
   const preset = options.demo_presets[selectedPreset];
   const activeSetupChips = [
     category && category !== "All" ? category : "All categories",
@@ -228,8 +210,10 @@ export default function App() {
 
   return (
     <main className="min-h-screen bg-canvas text-ink">
-      {showStartupSplash ? <StartupSplash status={status} /> : null}
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
+      {showStartupSplash ? (
+        <StartupSplash status={status} error={startupError} onRetry={retryStartup} />
+      ) : (
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
         <header className="app-header">
           <div className="brand-lockup">
             <BrandMark />
@@ -502,15 +486,19 @@ export default function App() {
             )}
           </section>
         </section>
-      </div>
+        </div>
+      )}
     </main>
   );
 }
 
-function StartupSplash({ status }: { status: ApiStatus | null }) {
+function StartupSplash({ status, error, onRetry }: { status: ApiStatus | null; error: string; onRetry: () => void }) {
+  const message = error
+    ? "The app could not load the live SaaSScout workspace. Check the API connection, then retry."
+    : (status?.source_notice ?? "Loading product data, Chroma indexes, enrichment metadata, and demo options.");
   return (
     <div className="startup-splash" role="status" aria-live="polite" aria-label="Loading SaaSScout">
-      <div className="startup-card">
+      <div className={error ? "startup-card startup-card-error-state" : "startup-card"}>
         <div className="startup-brand">
           <BrandMark />
           <div>
@@ -523,7 +511,18 @@ function StartupSplash({ status }: { status: ApiStatus | null }) {
           <span />
           <span />
         </div>
-        <p>{status?.source_notice ?? "Preparing grounded SaaS evidence."}</p>
+        <p>{message}</p>
+        {error ? (
+          <>
+            <div className="startup-error">{error}</div>
+            <div className="startup-actions">
+              <button className="primary-button" type="button" onClick={onRetry}>
+                <RotateCcw size={16} />
+                Retry loading
+              </button>
+            </div>
+          </>
+        ) : null}
         <div className="startup-steps" aria-hidden="true">
           <span>
             <Database size={15} />

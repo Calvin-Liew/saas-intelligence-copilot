@@ -120,6 +120,10 @@ input[type="number"],
     @apply relative w-full max-w-[420px] overflow-hidden rounded-ds-lg border border-accent/20 bg-surface/90 p-6 shadow-soft backdrop-blur;
   }
 
+  .startup-card-error-state {
+    animation: none;
+  }
+
   .startup-card::before {
     content: "";
     background: linear-gradient(90deg, hsl(var(--color-accent)), hsl(var(--color-signal)));
@@ -164,6 +168,14 @@ input[type="number"],
 
   .startup-card p {
     @apply relative z-10 mt-4 text-sm leading-6 text-muted;
+  }
+
+  .startup-error {
+    @apply relative z-10 mt-4 rounded-ds border border-danger/20 bg-red-50 px-3 py-2 text-sm font-medium text-danger;
+  }
+
+  .startup-actions {
+    @apply relative z-10 mt-4 flex justify-start;
   }
 
   .startup-steps {

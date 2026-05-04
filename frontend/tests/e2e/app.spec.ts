@@ -233,6 +233,69 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await expect(page.getByRole("button", { name: /Run analysis/i })).toBeEnabled();
 });
 
+test("keeps the workspace hidden until status and options finish loading", async ({ page }) => {
+  let releaseStatus: () => void = () => undefined;
+  let releaseOptions: () => void = () => undefined;
+  const statusGate = new Promise<void>((resolve) => {
+    releaseStatus = resolve;
+  });
+  const optionsGate = new Promise<void>((resolve) => {
+    releaseOptions = resolve;
+  });
+
+  await page.unroute("https://ui-test-api.local/api/status");
+  await page.unroute("https://ui-test-api.local/api/options");
+  await page.route("https://ui-test-api.local/api/status", async (route) => {
+    await statusGate;
+    await route.fulfill({ json: statusResponse });
+  });
+  await page.route("https://ui-test-api.local/api/options", async (route) => {
+    await optionsGate;
+    await route.fulfill({ json: optionsResponse });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
+  await page.waitForTimeout(2800);
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
+
+  releaseStatus();
+  await page.waitForTimeout(250);
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
+
+  releaseOptions();
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeHidden({ timeout: 4000 });
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
+});
+
+test("keeps startup on screen with a retry action when loading fails", async ({ page }) => {
+  let statusAttempts = 0;
+  await page.unroute("https://ui-test-api.local/api/status");
+  await page.route("https://ui-test-api.local/api/status", async (route) => {
+    statusAttempts += 1;
+    if (statusAttempts === 1) {
+      await route.fulfill({ status: 503, body: "API is starting" });
+      return;
+    }
+    await route.fulfill({ json: statusResponse });
+  });
+
+  await page.goto("/");
+
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
+  await expect(page.getByText("The app could not load the live SaaSScout workspace.")).toBeVisible();
+  await expect(page.getByText("API is starting")).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Retry loading" }).click();
+  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeHidden({ timeout: 4000 });
+  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
+});
+
 test("showcase preset buttons update the query", async ({ page }) => {
   await page.goto("/");
 
