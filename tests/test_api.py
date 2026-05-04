@@ -20,9 +20,11 @@ def reset_api_caches():
 
     api_module._STATUS_CACHE = None
     api_module._CHROMA_STATUS_CACHE = None
+    api_module._OPTIONS_CACHE = None
     yield
     api_module._STATUS_CACHE = None
     api_module._CHROMA_STATUS_CACHE = None
+    api_module._OPTIONS_CACHE = None
 
 
 def test_health_endpoint() -> None:
@@ -229,6 +231,44 @@ def test_options_endpoint_uses_single_processed_data_load(monkeypatch) -> None:
     assert data["categories"] == ["All", "Crm", "Customer Support"]
     assert data["products"] == ["Alpha CRM", "Beta Desk"]
     assert any(feature["id"] == "automation" for feature in data["features"])
+
+
+def test_options_endpoint_uses_short_lived_cache(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    calls = 0
+    products = pd.DataFrame(
+        [
+            {
+                "product_name": "Alpha CRM",
+                "category": "Crm",
+                "normalized_name": "alpha crm",
+                "automation": 1,
+            },
+            {
+                "product_name": "Beta Desk",
+                "category": "Customer Support",
+                "normalized_name": "beta desk",
+                "ticket_creation_and_assignment": 1,
+            },
+        ]
+    )
+
+    def fake_load_processed_or_demo():
+        nonlocal calls
+        calls += 1
+        return products, pd.DataFrame(), "test data"
+
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fake_load_processed_or_demo)
+    test_client = TestClient(api_module.create_app())
+
+    first = test_client.get("/api/options")
+    second = test_client.get("/api/options")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert calls == 1
 
 
 def test_analyze_endpoint_serializes_tables_and_provenance() -> None:

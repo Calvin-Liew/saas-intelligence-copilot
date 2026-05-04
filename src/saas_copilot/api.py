@@ -27,6 +27,8 @@ _CHROMA_SUCCESS_TTL_SECONDS = 300
 _CHROMA_FAILURE_TTL_SECONDS = 10
 _STATUS_CACHE: tuple[float, dict[str, Any]] | None = None
 _STATUS_TTL_SECONDS = 60
+_OPTIONS_CACHE: tuple[float, dict[str, Any]] | None = None
+_OPTIONS_TTL_SECONDS = 300
 
 
 class AnalyzeRequest(BaseModel):
@@ -62,21 +64,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/options")
     def options() -> dict[str, Any]:
-        products, _, _ = load_processed_or_demo()
-        features = feature_columns(products)
-        return {
-            "categories": _categories_from_products(products),
-            "products": _product_names_from_products(products),
-            "features": [
-                {
-                    "id": feature,
-                    "label": display_feature_name(feature),
-                    "review_derived": is_review_derived_feature(feature),
-                }
-                for feature in features
-            ],
-            "demo_presets": DEMO_PRESETS,
-        }
+        return _options_payload()
 
     @app.post("/api/analyze")
     def analyze(payload: AnalyzeRequest) -> dict[str, Any]:
@@ -150,6 +138,31 @@ def _status_payload() -> dict[str, Any]:
         },
     }
     _STATUS_CACHE = (now + _STATUS_TTL_SECONDS, payload)
+    return deepcopy(payload)
+
+
+def _options_payload() -> dict[str, Any]:
+    global _OPTIONS_CACHE
+    now = monotonic()
+    if _OPTIONS_CACHE and _OPTIONS_CACHE[0] > now:
+        return deepcopy(_OPTIONS_CACHE[1])
+
+    products, _, _ = load_processed_or_demo()
+    features = feature_columns(products)
+    payload = {
+        "categories": _categories_from_products(products),
+        "products": _product_names_from_products(products),
+        "features": [
+            {
+                "id": feature,
+                "label": display_feature_name(feature),
+                "review_derived": is_review_derived_feature(feature),
+            }
+            for feature in features
+        ],
+        "demo_presets": DEMO_PRESETS,
+    }
+    _OPTIONS_CACHE = (now + _OPTIONS_TTL_SECONDS, payload)
     return deepcopy(payload)
 
 

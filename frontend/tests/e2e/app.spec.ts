@@ -233,7 +233,7 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await expect(page.getByRole("button", { name: /Run analysis/i })).toBeEnabled();
 });
 
-test("keeps the workspace hidden until status and options finish loading", async ({ page }) => {
+test("opens the workspace after status while full options continue loading", async ({ page }) => {
   let releaseStatus: () => void = () => undefined;
   let releaseOptions: () => void = () => undefined;
   const statusGate = new Promise<void>((resolve) => {
@@ -258,18 +258,14 @@ test("keeps the workspace hidden until status and options finish loading", async
 
   await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
-  await page.waitForTimeout(2800);
-  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
 
   releaseStatus();
-  await page.waitForTimeout(250);
-  await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
-
-  releaseOptions();
   await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeHidden({ timeout: 4000 });
   await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
+  await expect(page.getByLabel("Analysis query")).toHaveValue(/Compare Zendesk/);
+
+  releaseOptions();
+  await expect(page.getByText("Products")).toBeVisible();
 });
 
 test("keeps startup on screen with a retry action when loading fails", async ({ page }) => {

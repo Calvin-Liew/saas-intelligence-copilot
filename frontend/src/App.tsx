@@ -109,6 +109,7 @@ export default function App() {
   const [startupError, setStartupError] = useState("");
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [error, setError] = useState("");
+  const [optionsWarning, setOptionsWarning] = useState("");
   const [templateRetryPayload, setTemplateRetryPayload] = useState<AnalyzeRequest | null>(null);
   const featureLabelById = useMemo(
     () => new Map(options.features.map((feature) => [feature.id, readableFeatureLabel(feature.label)])),
@@ -122,6 +123,7 @@ export default function App() {
 
     setShowStartupSplash(true);
     setStartupError("");
+    setOptionsWarning("");
     setError("");
 
     function openWorkspace() {
@@ -132,16 +134,32 @@ export default function App() {
     }
 
     async function loadStartupData() {
+      const optionsRequest = getOptions()
+        .then((result) => ({ ok: true as const, result }))
+        .catch((err) => ({ ok: false as const, err }));
+
       try {
-        const [statusResult, optionResult] = await Promise.all([getStatus(), getOptions()]);
+        const statusResult = await getStatus();
         if (!mounted) return;
         setStatus(statusResult);
-        setOptions(optionResult);
         setUseLlm(Boolean(statusResult.llm.available));
         openWorkspace();
       } catch (err) {
         if (!mounted) return;
         setStartupError(err instanceof Error ? err.message : String(err));
+        return;
+      }
+
+      const optionsResult = await optionsRequest;
+      if (!mounted) return;
+      if (optionsResult.ok) {
+        setOptions(optionsResult.result);
+      } else {
+        setOptionsWarning(
+          `Using compact fallback controls because the full option list is still loading: ${
+            optionsResult.err instanceof Error ? optionsResult.err.message : String(optionsResult.err)
+          }`,
+        );
       }
     }
 
@@ -272,6 +290,7 @@ export default function App() {
             ) : null}
           </Notice>
         ) : null}
+        {optionsWarning ? <Notice tone="warn">{optionsWarning}</Notice> : null}
         {result?.llm.warning ? <Notice tone="warn">{result.llm.warning}</Notice> : null}
 
         <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
