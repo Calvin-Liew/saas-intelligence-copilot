@@ -19,6 +19,26 @@ def test_health_endpoint() -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_cors_allows_netlify_production_and_deploy_urls(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    monkeypatch.delenv("FRONTEND_ORIGIN_REGEX", raising=False)
+    test_client = TestClient(api_module.create_app())
+    for origin in [
+        "https://saas-intelligence-copilot-calvi.netlify.app",
+        "https://69f889f86e74e093ffbda506--saas-intelligence-copilot-calvi.netlify.app",
+    ]:
+        response = test_client.options(
+            "/api/status",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == origin
+
+
 def test_status_endpoint_reports_counts() -> None:
     response = client.get("/api/status")
     assert response.status_code == 200

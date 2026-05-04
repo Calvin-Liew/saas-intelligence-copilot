@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_frontend_origins(),
+        allow_origin_regex=_frontend_origin_regex(),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
@@ -141,6 +142,14 @@ def create_app() -> FastAPI:
 def _frontend_origins() -> list[str]:
     raw = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def _frontend_origin_regex() -> str | None:
+    raw = os.getenv(
+        "FRONTEND_ORIGIN_REGEX",
+        r"https://([a-z0-9-]+--)?saas-intelligence-copilot-calvi\.netlify\.app",
+    ).strip()
+    return raw or None
 
 
 def _active_model() -> str:

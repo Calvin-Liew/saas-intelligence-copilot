@@ -277,7 +277,7 @@ test("keeps startup on screen with a retry action when loading fails", async ({ 
   await page.unroute("https://ui-test-api.local/api/status");
   await page.route("https://ui-test-api.local/api/status", async (route) => {
     statusAttempts += 1;
-    if (statusAttempts === 1) {
+    if (statusAttempts <= 3) {
       await route.fulfill({ status: 503, body: "API is starting" });
       return;
     }

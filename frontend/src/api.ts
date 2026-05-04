@@ -1,6 +1,12 @@
 import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : "");
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+
+interface FetchRetryOptions {
+  retries?: number;
+  retryDelayMs?: number;
+}
 
 export async function getStatus(): Promise<ApiStatus> {
   return fetchJson<ApiStatus>("/api/status");
@@ -39,14 +45,45 @@ export function normalizeAnalysisResult(result: Partial<AnalysisResult>): Analys
   };
 }
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function fetchJson<T>(path: string, init?: RequestInit, options: FetchRetryOptions = {}): Promise<T> {
   if (!API_BASE_URL) {
     throw new Error("VITE_API_BASE_URL is not configured for this deployment.");
   }
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
-  if (!response.ok) {
+  const url = `${API_BASE_URL.replace(/\/$/, "")}${path}`;
+  const retries = options.retries ?? 2;
+  const retryDelayMs = options.retryDelayMs ?? 450;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(url, init);
+    } catch (err) {
+      if (attempt < retries) {
+        await delay(retryDelayMs * (attempt + 1));
+        continue;
+      }
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Could not reach the SaaSScout API at ${API_BASE_URL}. ${detail}. If Render is waking up, wait a moment and retry.`,
+      );
+    }
+
+    if (response.ok) {
+      return response.json() as Promise<T>;
+    }
+
     const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}`);
+    if (RETRYABLE_STATUS_CODES.has(response.status) && attempt < retries) {
+      await delay(retryDelayMs * (attempt + 1));
+      continue;
+    }
+    throw new Error(message || `Request to ${url} failed with status ${response.status}`);
   }
-  return response.json() as Promise<T>;
+
+  throw new Error(`Could not reach the SaaSScout API at ${API_BASE_URL}.`);
+}
+
+function delay(ms: number): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
 }
