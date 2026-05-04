@@ -23,6 +23,32 @@ The app can run locally from Kaggle-processed files and Chroma indexes, or onlin
 - Shipped a React/TypeScript dashboard on Netlify with a FastAPI backend on Render and a packaged Chroma/data artifact for faster startup.
 - Hardened the public demo with same-origin Netlify proxying, template fallback for LLM failures, and scheduled GitHub Actions production monitoring.
 
+## Project Map
+
+For non-technical readers:
+
+| What SaaSScout does | Why it matters |
+|---|---|
+| Finds and compares SaaS tools from a natural-language request | Reduces manual research across vendor pages, review sites, and spreadsheets |
+| Combines pricing, feature coverage, reviews, and vendor metadata | Gives a fuller buying picture than a generic chatbot recommendation |
+| Shows evidence snippets and provenance | Makes recommendations easier to trust and easier to verify |
+| Flags missing or lower-confidence evidence | Avoids treating absent reviews, quote-based pricing, or review-derived signals as certainty |
+| Produces recommendation memos, scorecards, review themes, and next checks | Helps analysts and procurement teams turn research into an actionable shortlist |
+
+For technical reviewers:
+
+| System layer | What was built |
+|---|---|
+| Data ingestion | Kaggle download support, schema inspection, product-name normalization, product/pricing/feature/review joins, unmatched-record QA |
+| Data enrichment | Supplemental pricing, review-derived support feature signals, FactGrid enterprise metadata, domain-verified Wikidata vendor facts, and OpenAlternative discovery |
+| Retrieval | Separate Chroma collections for products, reviews, and open-source alternatives with TF-IDF fallback and retriever metadata |
+| Ranking and grounding | Feature-fit, pricing, review, category, evidence-quality, and provenance-aware scoring before answer generation |
+| Generation | Provider-neutral LLM layer with Groq/Qwen online, Ollama/Qwen local, and deterministic grounded-template fallback |
+| Backend | FastAPI routes for health, status, options, and analysis, with production artifact bootstrap and cached status checks |
+| Frontend | React, TypeScript, Vite, and Tailwind dashboard with guided setup, readable feature labels, evidence tabs, loading states, and template-mode retry |
+| Deployment and reliability | Netlify frontend, Render backend, same-origin API proxy, packaged data/Chroma artifact, production smoke monitor, and scheduled GitHub Actions monitoring |
+| Portfolio polish | Live screenshots, demo script, launch checklist, recommended prompts, and documented limitations |
+
 ## Problem
 
 SaaS evaluation is fragmented across vendor pages, pricing sheets, review sites, and spreadsheets. This project helps shortlist tools by combining structured filters with semantic retrieval over product descriptions and review snippets.
