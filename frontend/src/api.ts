@@ -1,6 +1,6 @@
 import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : "");
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : "same-origin");
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 interface FetchRetryOptions {
@@ -46,10 +46,7 @@ export function normalizeAnalysisResult(result: Partial<AnalysisResult>): Analys
 }
 
 export async function fetchJson<T>(path: string, init?: RequestInit, options: FetchRetryOptions = {}): Promise<T> {
-  if (!API_BASE_URL) {
-    throw new Error("VITE_API_BASE_URL is not configured for this deployment.");
-  }
-  const url = `${API_BASE_URL.replace(/\/$/, "")}${path}`;
+  const url = apiUrl(path);
   const retries = options.retries ?? 2;
   const retryDelayMs = options.retryDelayMs ?? 450;
 
@@ -64,7 +61,7 @@ export async function fetchJson<T>(path: string, init?: RequestInit, options: Fe
       }
       const detail = err instanceof Error ? err.message : String(err);
       throw new Error(
-        `Could not reach the SaaSScout API at ${API_BASE_URL}. ${detail}. If Render is waking up, wait a moment and retry.`,
+        `Could not reach the SaaSScout API at ${apiLabel()}. ${detail}. If Render is waking up, wait a moment and retry.`,
       );
     }
 
@@ -80,10 +77,19 @@ export async function fetchJson<T>(path: string, init?: RequestInit, options: Fe
     throw new Error(message || `Request to ${url} failed with status ${response.status}`);
   }
 
-  throw new Error(`Could not reach the SaaSScout API at ${API_BASE_URL}.`);
+  throw new Error(`Could not reach the SaaSScout API at ${apiLabel()}.`);
 }
 
 function delay(ms: number): Promise<void> {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve) => globalThis.setTimeout(resolve, ms));
+}
+
+function apiUrl(path: string): string {
+  if (API_BASE_URL === "same-origin") return path;
+  return `${API_BASE_URL.replace(/\/$/, "")}${path}`;
+}
+
+function apiLabel(): string {
+  return API_BASE_URL === "same-origin" ? "this site's /api proxy" : API_BASE_URL;
 }

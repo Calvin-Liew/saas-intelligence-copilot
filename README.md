@@ -182,8 +182,10 @@ FRONTEND_ORIGINS = "https://saas-intelligence-copilot-calvi.netlify.app"
 Configure Netlify with:
 
 ```text
-VITE_API_BASE_URL=https://saas-intelligence-copilot-api.onrender.com
+VITE_API_BASE_URL=same-origin
 ```
+
+Netlify proxies `/api/*` to the Render backend through `netlify.toml`, so the frontend can call the API from both the main production URL and Netlify deploy URLs without browser CORS failures.
 
 Smoke test the full Chroma + Qwen path:
 
@@ -229,7 +231,7 @@ Netlify frontend:
 - config: `netlify.toml`
 - build command: `npm run build`
 - publish directory: `frontend/dist`
-- required env var: `VITE_API_BASE_URL=https://saas-intelligence-copilot-api.onrender.com`
+- required env var: `VITE_API_BASE_URL=same-origin`
 
 Frontend verification:
 
@@ -244,7 +246,7 @@ npm run build
 Set the frontend API URL after the Render backend is live:
 
 ```powershell
-netlify env:set VITE_API_BASE_URL https://saas-intelligence-copilot-api.onrender.com --context production --scope builds
+netlify env:set VITE_API_BASE_URL same-origin --context production
 npm run build --prefix frontend
 netlify deploy --prod --dir frontend/dist
 ```
