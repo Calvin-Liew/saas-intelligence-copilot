@@ -1,5 +1,7 @@
 # SaaSScout
 
+[![Production Monitor](https://github.com/Calvin-Liew/saas-intelligence-copilot/actions/workflows/production-monitor.yml/badge.svg)](https://github.com/Calvin-Liew/saas-intelligence-copilot/actions/workflows/production-monitor.yml)
+
 ## Overview
 
 SaaSScout is a RAG-based software evaluation assistant for product analysts, procurement teams, and operators. It combines product metadata, pricing plans, feature flags, and review evidence to produce grounded SaaS recommendations, comparisons, and procurement-style next checks.
@@ -11,6 +13,15 @@ The app can run locally from Kaggle-processed files and Chroma indexes, or onlin
 - Frontend: `https://saas-intelligence-copilot-calvi.netlify.app`
 - Backend health: `https://saas-intelligence-copilot-api.onrender.com/health`
 - Backend status: `https://saas-intelligence-copilot-api.onrender.com/api/status`
+
+![SaaSScout dashboard showing a grounded support-platform comparison](docs/assets/saasscout-desktop.png)
+
+## Portfolio Highlights
+
+- Built a production-style RAG workflow that combines structured SaaS metadata, pricing, feature flags, review snippets, and enrichment evidence.
+- Added source-aware evidence lanes for Capterra reviews, FactGrid enterprise metadata, Wikidata vendor facts, and OpenAlternative discovery.
+- Shipped a React/TypeScript dashboard on Netlify with a FastAPI backend on Render and a packaged Chroma/data artifact for faster startup.
+- Hardened the public demo with same-origin Netlify proxying, template fallback for LLM failures, and scheduled GitHub Actions production monitoring.
 
 ## Problem
 
@@ -199,6 +210,13 @@ Smoke test the full local demo:
 python scripts/smoke_all.py
 ```
 
+Capture portfolio screenshots from the live app:
+
+```powershell
+cd frontend
+npm run capture:demo
+```
+
 ## Production Deployment
 
 The production path is a React frontend on Netlify and a FastAPI backend on Render. The backend should not download Kaggle datasets at startup. Instead, package the processed CSVs and Chroma index locally, upload the zip to a GitHub Release, and point `DATA_ARTIFACT_URL` at that release asset.
@@ -262,6 +280,11 @@ Invoke-RestMethod https://saas-intelligence-copilot-api.onrender.com/health
 `production_monitor.py` checks the browser path through Netlify, including `/api/status` and a low-cost template `/api/analyze` request. It reports the first failing layer as Netlify, Render, Chroma, enrichment, or analyze.
 
 Groq rate limits or API failures degrade to the grounded template response with a visible warning, so the app remains usable without inventing missing evidence.
+
+Launch support docs:
+
+- [Demo script](docs/demo-script.md)
+- [Launch checklist](docs/launch-checklist.md)
 
 ## Evaluation
 

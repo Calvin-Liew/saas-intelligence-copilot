@@ -9,6 +9,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run src",
     "test:e2e": "playwright test",
+    "capture:demo": "node scripts/capture-demo.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
