@@ -207,6 +207,7 @@ export default function App() {
     `${topK} results`,
     useLlm ? "LLM rewrite" : "Template answer",
   ];
+  const headerStatus = compactHeaderStatus(status);
 
   return (
     <main className="min-h-screen bg-canvas text-ink">
@@ -214,27 +215,36 @@ export default function App() {
         <StartupSplash status={status} error={startupError} onRetry={retryStartup} />
       ) : (
         <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
-        <header className="app-header">
-          <div className="brand-lockup">
-            <BrandMark />
-            <div className="brand-copy">
-              <div className="brand-eyebrow">
-                <span>Enterprise software evaluation</span>
-                <span className="brand-badge">Live RAG Demo</span>
+          <header className="app-header">
+            <div className="brand-lockup">
+              <BrandMark />
+              <div className="brand-copy">
+                <div className="brand-eyebrow">
+                  <span>Enterprise software evaluation</span>
+                  <span className="brand-badge">Live RAG Demo</span>
+                </div>
+                <h1>SaaSScout</h1>
+                <p>Scout smarter SaaS decisions across pricing, features, and reviews.</p>
               </div>
-              <h1>SaaSScout</h1>
-              <p>Scout smarter SaaS decisions across pricing, features, and reviews.</p>
             </div>
-          </div>
-          <div className="status-strip">
-            <StatusPill icon={<Database size={16} />} label="Data" value={status?.source ?? "Loading"} />
-            <StatusPill icon={<Layers3 size={16} />} label="Products" value={String(status?.product_count ?? "-")} />
-            <StatusPill icon={<FileSearch size={16} />} label="Reviews" value={String(status?.review_count ?? "-")} />
-            <StatusPill icon={<Server size={16} />} label="Chroma" value={status?.chroma.status ?? "Loading"} />
-            <StatusPill icon={<CheckCircle2 size={16} />} label="Enrichment" value={status?.enrichment.status ?? "Loading"} />
-            <StatusPill icon={<Sparkles size={16} />} label="LLM" value={status?.llm.label ?? "Loading"} />
-          </div>
-        </header>
+            <div className="header-status" aria-label="Live system status">
+              <div className="status-heading">
+                <span>
+                  <span className="live-dot" />
+                  Live workspace
+                </span>
+                <strong>{headerStatus.readyLabel}</strong>
+              </div>
+              <div className="status-strip">
+                <StatusPill icon={<Database size={16} />} label="Data" value={headerStatus.data} title={status?.source ?? "Loading"} />
+                <StatusPill icon={<Layers3 size={16} />} label="Products" value={headerStatus.products} />
+                <StatusPill icon={<FileSearch size={16} />} label="Reviews" value={headerStatus.reviews} />
+                <StatusPill icon={<Server size={16} />} label="Chroma" value={headerStatus.chroma} title={status?.chroma.status ?? "Loading"} />
+                <StatusPill icon={<CheckCircle2 size={16} />} label="Enrichment" value={headerStatus.enrichment} title={status?.enrichment.status ?? "Loading"} />
+                <StatusPill icon={<Sparkles size={16} />} label="LLM" value={headerStatus.llm} title={status?.llm.label ?? "Loading"} />
+              </div>
+            </div>
+          </header>
 
         {error ? <Notice tone="error">{error}</Notice> : null}
         {result?.llm.warning ? <Notice tone="warn">{result.llm.warning}</Notice> : null}
@@ -590,14 +600,36 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function StatusPill({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function StatusPill({ icon, label, value, title }: { icon: ReactNode; label: string; value: string; title?: string }) {
   return (
     <div className="status-pill">
-      {icon}
-      <span className="text-muted">{label}</span>
-      <strong>{value}</strong>
+      <span className="status-pill-label">
+        {icon}
+        <span>{label}</span>
+      </span>
+      <strong title={title ?? value}>{value}</strong>
     </div>
   );
+}
+
+function compactHeaderStatus(status: ApiStatus | null) {
+  const ready = Boolean(status?.chroma.ready && status.enrichment?.ready && status.llm.status === "ok");
+  const enrichment = status?.enrichment
+    ? `${status.enrichment.factgrid_matches} / ${status.enrichment.wikidata_matches} / ${compactNumber(status.enrichment.open_source_alternatives)}`
+    : "Loading";
+  return {
+    readyLabel: ready ? "Ready" : "Loading",
+    data: status?.source === "Kaggle/local data" ? "Kaggle data" : (status?.source ?? "Loading"),
+    products: status ? String(status.product_count) : "-",
+    reviews: status ? compactNumber(status.review_count) : "-",
+    chroma: status?.chroma.ready ? "Ready" : (status?.chroma.status ?? "Loading"),
+    enrichment,
+    llm: status?.llm.provider === "groq" ? "Groq Qwen" : (status?.llm.label ?? "Loading"),
+  };
+}
+
+function compactNumber(value: number): string {
+  return value >= 1000 ? `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k` : String(value);
 }
 
 function SetupSection({ title, meta, children }: { title: string; meta: string; children: ReactNode }) {

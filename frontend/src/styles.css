@@ -53,7 +53,15 @@ input[type="number"],
       radial-gradient(circle at 98% 6%, hsl(var(--color-signal) / 0.13), transparent 30%),
       linear-gradient(135deg, hsl(var(--color-surface) / 0.98), hsl(var(--color-panel) / 0.92));
     box-shadow: 0 20px 55px hsl(var(--color-accent) / 0.12);
-    @apply relative flex flex-col justify-between gap-4 overflow-hidden rounded-ds-lg border border-accent/20 p-4 backdrop-blur lg:flex-row lg:items-center;
+    @apply relative grid gap-4 overflow-hidden rounded-ds-lg border border-accent/20 p-4 backdrop-blur;
+  }
+
+  @media (min-width: 1024px) {
+    .app-header {
+      grid-template-columns: minmax(320px, 0.9fr) minmax(580px, 1.35fr);
+      align-items: center;
+      padding: 1.25rem;
+    }
   }
 
   .app-header::before {
@@ -75,7 +83,7 @@ input[type="number"],
   }
 
   .brand-lockup {
-    @apply flex min-w-0 items-center gap-4;
+    @apply flex min-w-0 items-center gap-3 sm:gap-4;
   }
 
   .brand-logo {
@@ -105,6 +113,27 @@ input[type="number"],
 
   .brand-copy p {
     @apply mt-1 max-w-2xl text-sm text-muted;
+  }
+
+  .header-status {
+    @apply min-w-0 rounded-ds-lg border border-accent/15 bg-surface/75 p-2 shadow-sm backdrop-blur-sm;
+  }
+
+  .status-heading {
+    @apply mb-2 flex items-center justify-between gap-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+
+  .status-heading span {
+    @apply inline-flex min-w-0 items-center gap-2;
+  }
+
+  .status-heading strong {
+    @apply shrink-0 rounded-full border border-signal/25 bg-signal/10 px-2.5 py-0.5 text-[11px] font-semibold text-accent;
+  }
+
+  .live-dot {
+    box-shadow: 0 0 0 4px hsl(var(--color-signal) / 0.12);
+    @apply h-2 w-2 rounded-full bg-signal;
   }
 
   .startup-splash {
@@ -191,7 +220,7 @@ input[type="number"],
   }
 
   .status-strip {
-    @apply flex w-full flex-wrap gap-1.5 rounded-ds-lg border border-accent/15 bg-surface/70 p-1.5 text-sm shadow-sm backdrop-blur-sm lg:w-auto lg:max-w-[820px] lg:justify-end xl:flex-nowrap xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none;
+    @apply grid w-full min-w-0 grid-cols-2 gap-1.5 text-sm sm:grid-cols-3 xl:grid-cols-6;
   }
 
   .panel {
@@ -283,19 +312,23 @@ input[type="number"],
   }
 
   .status-pill {
-    @apply flex min-h-9 min-w-[112px] flex-1 items-center gap-1.5 rounded-ds border border-transparent bg-surface/85 px-2.5 text-xs shadow-sm ring-1 ring-accent/15 lg:flex-none;
+    @apply flex min-h-[54px] min-w-0 flex-col justify-center gap-1 rounded-ds border border-line/80 bg-surface/90 px-2.5 py-2 text-xs shadow-sm;
   }
 
-  .status-pill svg {
+  .status-pill-label {
+    @apply flex min-w-0 items-center gap-1.5 text-muted;
+  }
+
+  .status-pill-label svg {
     @apply shrink-0 text-signal;
   }
 
-  .status-pill span {
+  .status-pill-label span {
     @apply shrink-0;
   }
 
   .status-pill strong {
-    @apply min-w-0 max-w-[150px] truncate font-semibold text-ink xl:max-w-none;
+    @apply block min-w-0 truncate text-sm font-semibold leading-4 text-ink;
   }
 
   .metric {

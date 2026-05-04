@@ -218,7 +218,7 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByText("Products")).toBeVisible();
   await expect(page.getByText("Enrichment")).toBeVisible();
-  await expect(page.getByText("Ready (FactGrid 21 / Wikidata 90 / OSS 1029)")).toBeVisible();
+  await expect(page.getByText("21 / 90 / 1.0k")).toBeVisible();
   await expect(page.getByText("335", { exact: true })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
   await expect(page.getByText("Scenario")).toBeVisible();
