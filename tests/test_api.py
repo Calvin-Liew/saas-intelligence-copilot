@@ -5,6 +5,7 @@ import sys
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 from fastapi.testclient import TestClient
 
 from saas_copilot.api import app
@@ -13,8 +14,34 @@ from saas_copilot.api import app
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def reset_api_caches():
+    from saas_copilot import api as api_module
+
+    api_module._STATUS_CACHE = None
+    api_module._CHROMA_STATUS_CACHE = None
+    yield
+    api_module._STATUS_CACHE = None
+    api_module._CHROMA_STATUS_CACHE = None
+
+
 def test_health_endpoint() -> None:
     response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_health_endpoint_stays_dependency_free(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    def fail_if_loaded():
+        raise AssertionError("health should not load processed data")
+
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fail_if_loaded)
+    test_client = TestClient(api_module.create_app())
+
+    response = test_client.get("/health")
+
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
@@ -51,6 +78,62 @@ def test_status_endpoint_reports_counts() -> None:
     assert "enrichment" in data
     assert "factgrid_matches" in data["enrichment"]
     assert "wikidata_matches" in data["enrichment"]
+
+
+def test_status_endpoint_uses_short_lived_cache(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    calls = {"data": 0, "chroma": 0, "enrichment": 0, "llm": 0}
+    products = pd.DataFrame(
+        [
+            {"product_name": "Alpha CRM", "category": "Crm"},
+            {"product_name": "Beta Desk", "category": "Customer Support"},
+        ]
+    )
+    reviews = pd.DataFrame([{"product_name": "Beta Desk", "snippet": "Works well."}])
+
+    def fake_load_processed_or_demo():
+        calls["data"] += 1
+        return products, reviews, "test data"
+
+    def fake_chroma_status():
+        calls["chroma"] += 1
+        return {
+            "ready": True,
+            "product_count": 2,
+            "review_count": 1,
+            "alternatives_count": 0,
+            "status": "Ready (2/1)",
+        }
+
+    def fake_enrichment_status(_products):
+        calls["enrichment"] += 1
+        return {
+            "ready": True,
+            "factgrid_matches": 1,
+            "wikidata_matches": 1,
+            "open_source_alternatives": 0,
+            "status": "Ready (FactGrid 1 / Wikidata 1 / OSS 0)",
+        }
+
+    def fake_llm_available():
+        calls["llm"] += 1
+        return False
+
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fake_load_processed_or_demo)
+    monkeypatch.setattr(api_module, "_chroma_status", fake_chroma_status)
+    monkeypatch.setattr(api_module, "_enrichment_status", fake_enrichment_status)
+    monkeypatch.setattr(api_module, "active_llm_available", fake_llm_available)
+    monkeypatch.setattr(api_module, "active_llm_label", lambda: "Template")
+    test_client = TestClient(api_module.create_app())
+
+    first = test_client.get("/api/status")
+    second = test_client.get("/api/status")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == second.json()
+    assert calls == {"data": 1, "chroma": 1, "enrichment": 1, "llm": 1}
 
 
 def test_chroma_status_uses_sqlite_fallback_after_client_error(monkeypatch, tmp_path) -> None:

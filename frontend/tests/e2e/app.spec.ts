@@ -359,6 +359,43 @@ test("runs analysis and renders cards, tabs, tables, and evidence", async ({ pag
   await expect(page.getByText("easy ticketing")).toBeVisible();
 });
 
+test("keeps previous results and offers template retry after analyze timeout", async ({ page }) => {
+  const postedPayloads: Array<{ use_llm?: boolean }> = [];
+  let attempts = 0;
+
+  await page.unroute("https://ui-test-api.local/api/analyze");
+  await page.route("https://ui-test-api.local/api/analyze", async (route) => {
+    attempts += 1;
+    postedPayloads.push(route.request().postDataJSON() as { use_llm?: boolean });
+    if (attempts >= 2 && attempts <= 4) {
+      await route.fulfill({ status: 504, body: "Render timed out while Groq was waking up" });
+      return;
+    }
+    await route.fulfill({ json: analyzeResponse });
+  });
+
+  await page.goto("/");
+
+  await page.getByRole("button", { name: /Run analysis/i }).first().click();
+  await expect(page.getByText("Direct answer: Freshdesk")).toBeVisible();
+
+  await page.getByRole("button", { name: /Run analysis/i }).first().click();
+  await expect(page.getByText("Render timed out while Groq was waking up")).toBeVisible();
+  await expect(page.getByText("Direct answer: Freshdesk")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry with template mode" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Retry with template mode" }).click();
+
+  await expect.poll(() => postedPayloads.length).toBe(5);
+  expect(postedPayloads[0].use_llm).toBe(true);
+  expect(postedPayloads[1].use_llm).toBe(true);
+  expect(postedPayloads[2].use_llm).toBe(true);
+  expect(postedPayloads[3].use_llm).toBe(true);
+  expect(postedPayloads[4].use_llm).toBe(false);
+  await expect(page.getByText("Render timed out while Groq was waking up")).toHaveCount(0);
+  await expect(page.getByText("Direct answer: Freshdesk")).toBeVisible();
+});
+
 test("shows open-source alternatives only when the response includes them", async ({ page }) => {
   await page.goto("/");
 

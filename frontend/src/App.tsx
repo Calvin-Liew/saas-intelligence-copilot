@@ -109,6 +109,7 @@ export default function App() {
   const [startupError, setStartupError] = useState("");
   const [startupAttempt, setStartupAttempt] = useState(0);
   const [error, setError] = useState("");
+  const [templateRetryPayload, setTemplateRetryPayload] = useState<AnalyzeRequest | null>(null);
   const featureLabelById = useMemo(
     () => new Map(options.features.map((feature) => [feature.id, readableFeatureLabel(feature.label)])),
     [options.features],
@@ -164,11 +165,13 @@ export default function App() {
     setAdditionalRequiredFeatures("");
     setAdditionalToolNames("");
     setResult(null);
+    setError("");
+    setTemplateRetryPayload(null);
     setActiveTab("answer");
   }
 
-  async function runAnalysis() {
-    const payload: AnalyzeRequest = {
+  function buildAnalyzePayload(forceTemplate = false): AnalyzeRequest {
+    return {
       query,
       category,
       max_monthly_price: applyBudget ? maxMonthlyPrice : null,
@@ -177,19 +180,32 @@ export default function App() {
       compare_tools: compareTools,
       additional_tool_names: additionalToolNames,
       top_k: topK,
-      use_llm: useLlm,
+      use_llm: forceTemplate ? false : useLlm,
     };
+  }
+
+  async function submitAnalysis(payload: AnalyzeRequest) {
     setLoading(true);
     setError("");
     try {
       const analysis = await analyze(payload);
       setResult(analysis);
+      setTemplateRetryPayload(null);
       setActiveTab("answer");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      setTemplateRetryPayload(payload.use_llm ? { ...payload, use_llm: false } : null);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function runAnalysis() {
+    await submitAnalysis(buildAnalyzePayload());
+  }
+
+  async function retryWithTemplateMode() {
+    await submitAnalysis(templateRetryPayload ?? buildAnalyzePayload(true));
   }
 
   function retryStartup() {
@@ -246,7 +262,16 @@ export default function App() {
             </div>
           </header>
 
-        {error ? <Notice tone="error">{error}</Notice> : null}
+        {error ? (
+          <Notice tone="error">
+            <span>{error}</span>
+            {templateRetryPayload ? (
+              <button className="notice-action" type="button" onClick={retryWithTemplateMode} disabled={loading}>
+                Retry with template mode
+              </button>
+            ) : null}
+          </Notice>
+        ) : null}
         {result?.llm.warning ? <Notice tone="warn">{result.llm.warning}</Notice> : null}
 
         <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
@@ -401,7 +426,7 @@ export default function App() {
                   <h2>Describe the evaluation</h2>
                   <p>Use natural language, then refine the analysis with the setup controls.</p>
                 </div>
-                <button className="primary-button" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
+                <button className="primary-button" type="button" onClick={() => void runAnalysis()} disabled={loading || !query.trim()}>
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
                   {loading ? "Analyzing" : "Run analysis"}
                 </button>
@@ -426,7 +451,7 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <button className="primary-button query-run-secondary" type="button" onClick={runAnalysis} disabled={loading || !query.trim()}>
+                <button className="primary-button query-run-secondary" type="button" onClick={() => void runAnalysis()} disabled={loading || !query.trim()}>
                   {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
                   {loading ? "Analyzing" : "Run analysis"}
                 </button>
@@ -658,7 +683,7 @@ function Notice({ children, tone }: { children: ReactNode; tone: "warn" | "error
   return (
     <div className={tone === "error" ? "notice-error" : "notice-warn"}>
       <AlertTriangle size={18} />
-      <span>{children}</span>
+      <div className="notice-body">{children}</div>
     </div>
   );
 }

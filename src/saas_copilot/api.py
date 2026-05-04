@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from copy import deepcopy
 from time import monotonic
 from typing import Any
 
@@ -24,6 +25,8 @@ from .scoring import feature_columns, is_review_derived_feature
 _CHROMA_STATUS_CACHE: tuple[float, dict[str, Any]] | None = None
 _CHROMA_SUCCESS_TTL_SECONDS = 300
 _CHROMA_FAILURE_TTL_SECONDS = 10
+_STATUS_CACHE: tuple[float, dict[str, Any]] | None = None
+_STATUS_TTL_SECONDS = 60
 
 
 class AnalyzeRequest(BaseModel):
@@ -55,28 +58,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
-        products, reviews, notice = load_processed_or_demo()
-        chroma = _chroma_status()
-        enrichment = _enrichment_status(products)
-        llm_available = active_llm_available()
-        source = "Demo data" if "fictional demo data" in notice.lower() else "Kaggle/local data"
-        return {
-            "source": source,
-            "source_notice": notice,
-            "product_count": len(products),
-            "review_count": len(reviews),
-            "category_count": int(products.get("category", pd.Series(dtype=str)).nunique()),
-            "chroma": chroma,
-            "enrichment": enrichment,
-            "llm": {
-                "label": active_llm_label(),
-                "available": llm_available,
-                "provider": RUNTIME.llm_provider,
-                "model": _active_model(),
-                "status": "ok" if llm_available else "unavailable",
-                "warning": "" if llm_available else "Configured LLM is unavailable; analyze requests will use the grounded template fallback.",
-            },
-        }
+        return _status_payload()
 
     @app.get("/api/options")
     def options() -> dict[str, Any]:
@@ -137,6 +119,38 @@ def create_app() -> FastAPI:
         }
 
     return app
+
+
+def _status_payload() -> dict[str, Any]:
+    global _STATUS_CACHE
+    now = monotonic()
+    if _STATUS_CACHE and _STATUS_CACHE[0] > now:
+        return deepcopy(_STATUS_CACHE[1])
+
+    products, reviews, notice = load_processed_or_demo()
+    chroma = _chroma_status()
+    enrichment = _enrichment_status(products)
+    llm_available = active_llm_available()
+    source = "Demo data" if "fictional demo data" in notice.lower() else "Kaggle/local data"
+    payload = {
+        "source": source,
+        "source_notice": notice,
+        "product_count": len(products),
+        "review_count": len(reviews),
+        "category_count": int(products.get("category", pd.Series(dtype=str)).nunique()),
+        "chroma": chroma,
+        "enrichment": enrichment,
+        "llm": {
+            "label": active_llm_label(),
+            "available": llm_available,
+            "provider": RUNTIME.llm_provider,
+            "model": _active_model(),
+            "status": "ok" if llm_available else "unavailable",
+            "warning": "" if llm_available else "Configured LLM is unavailable; analyze requests will use the grounded template fallback.",
+        },
+    }
+    _STATUS_CACHE = (now + _STATUS_TTL_SECONDS, payload)
+    return deepcopy(payload)
 
 
 def _frontend_origins() -> list[str]:

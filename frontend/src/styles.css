@@ -356,6 +356,14 @@ input[type="number"],
     @apply border-danger/25 bg-danger/10 text-danger;
   }
 
+  .notice-body {
+    @apply flex min-w-0 flex-1 flex-wrap items-center gap-2;
+  }
+
+  .notice-action {
+    @apply inline-flex shrink-0 items-center rounded-md border border-line bg-surface/80 px-2.5 py-1 text-xs font-semibold transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
   .multi-list {
     @apply max-h-44 overflow-auto rounded-ds border border-line bg-surface;
   }

@@ -255,8 +255,11 @@ Production smoke check:
 
 ```powershell
 python scripts/smoke_all.py --production --api-url https://saas-intelligence-copilot-api.onrender.com
+python scripts/production_monitor.py --site-url https://saas-intelligence-copilot-calvi.netlify.app
 Invoke-RestMethod https://saas-intelligence-copilot-api.onrender.com/health
 ```
+
+`production_monitor.py` checks the browser path through Netlify, including `/api/status` and a low-cost template `/api/analyze` request. It reports the first failing layer as Netlify, Render, Chroma, enrichment, or analyze.
 
 Groq rate limits or API failures degrade to the grounded template response with a visible warning, so the app remains usable without inventing missing evidence.
 
