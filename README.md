@@ -25,8 +25,6 @@ The app can run locally from Kaggle-processed files and Chroma indexes, or onlin
 
 ## Project Map
 
-For non-technical readers:
-
 | What SaaSScout does | Why it matters |
 |---|---|
 | Finds and compares SaaS tools from a natural-language request | Reduces manual research across vendor pages, review sites, and spreadsheets |
