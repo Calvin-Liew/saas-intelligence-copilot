@@ -31,11 +31,7 @@ def main() -> None:
     args = parser.parse_args()
 
     site_url = args.site_url.rstrip("/")
-    checks = [
-        check_health(site_url, args.timeout, args.retries, args.retry_delay),
-        check_status(site_url, args.timeout, args.retries, args.retry_delay),
-        check_analyze(site_url, args.timeout, args.retries, args.retry_delay),
-    ]
+    checks = run_monitor_checks(site_url, args.timeout, args.retries, args.retry_delay)
     if args.deploy_url:
         checks.append(
             check_status(args.deploy_url.rstrip("/"), args.timeout, args.retries, args.retry_delay, name="unique deploy status")
@@ -56,6 +52,36 @@ def main() -> None:
         raise SystemExit(1)
 
     print("\nResult: PASS. Netlify, Render, Chroma, and template analyze path are reachable.")
+
+
+def run_monitor_checks(base_url: str, timeout: float, retries: int, retry_delay: float) -> list[RemoteCheck]:
+    health = check_health(base_url, timeout, retries, retry_delay)
+    status = check_status(base_url, timeout, retries, retry_delay)
+    analyze = check_analyze(base_url, timeout, retries, retry_delay)
+    checks = [health, status, analyze]
+
+    # Render free-tier wake-up can return transient Netlify 504s for the first
+    # health/status checks, then recover once a later user-path request warms
+    # the service. Recheck those diagnostics after analyze succeeds so the
+    # monitor fails on persistent outages, not a recovered cold-start edge.
+    if analyze.passed:
+        if _is_transient_netlify_failure(health):
+            checks[0] = check_health(base_url, timeout, 1, retry_delay)
+        if _is_transient_netlify_failure(status):
+            checks[1] = check_status(base_url, timeout, 1, retry_delay)
+    return checks
+
+
+def _is_transient_netlify_failure(check: RemoteCheck) -> bool:
+    if check.passed:
+        return False
+    detail = check.detail.lower()
+    return check.layer == "Netlify/Render" and (
+        "status=502" in detail
+        or "status=503" in detail
+        or "status=504" in detail
+        or "timeout" in detail
+    )
 
 
 def check_health(base_url: str, timeout: float, retries: int, retry_delay: float) -> RemoteCheck:
