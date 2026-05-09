@@ -9,11 +9,11 @@ interface FetchRetryOptions {
 }
 
 export async function getStatus(): Promise<ApiStatus> {
-  return fetchJson<ApiStatus>("/api/status");
+  return fetchJson<ApiStatus>("/api/status", undefined, { retries: 4, retryDelayMs: 2500 });
 }
 
 export async function getOptions(): Promise<ApiOptions> {
-  return fetchJson<ApiOptions>("/api/options");
+  return fetchJson<ApiOptions>("/api/options", undefined, { retries: 3, retryDelayMs: 1500 });
 }
 
 export async function analyze(payload: AnalyzeRequest): Promise<AnalysisResult> {
@@ -74,7 +74,11 @@ export async function fetchJson<T>(path: string, init?: RequestInit, options: Fe
       await delay(retryDelayMs * (attempt + 1));
       continue;
     }
-    throw new Error(message || `Request to ${url} failed with status ${response.status}`);
+    const fallback = `Request to ${url} failed with status ${response.status}`;
+    const wakeupHint = RETRYABLE_STATUS_CODES.has(response.status)
+      ? " If Render is waking up, wait a moment and retry."
+      : "";
+    throw new Error(`${message || fallback}${wakeupHint}`);
   }
 
   throw new Error(`Could not reach the SaaSScout API at ${apiLabel()}.`);

@@ -53,6 +53,14 @@ describe("fetchJson", () => {
       /Could not reach the SaaSScout API/,
     );
   });
+
+  it("adds a wake-up hint after exhausted transient HTTP retries", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 504 })));
+
+    await expect(fetchJson("/api/status", undefined, { retries: 0, retryDelayMs: 0 })).rejects.toThrow(
+      /Render is waking up/,
+    );
+  });
 });
 
 function jsonResponse(body: unknown): Response {
