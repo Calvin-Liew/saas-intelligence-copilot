@@ -55,9 +55,9 @@ def main() -> None:
 
 
 def run_monitor_checks(base_url: str, timeout: float, retries: int, retry_delay: float) -> list[RemoteCheck]:
-    # Run the user-critical analyze path first. On Render's free tier this also
-    # warms the backend, which prevents diagnostic health/status checks from
-    # creating false failures during cold-start windows.
+    # Render's free tier can return transient Netlify 504s while the backend
+    # wakes up and initializes the data/index path. Run diagnostics around the
+    # user-critical analyze path, then recheck only transient warm-up failures.
     analyze = check_analyze(base_url, timeout, retries, retry_delay)
     health = check_health(base_url, timeout, retries, retry_delay)
     status = check_status(base_url, timeout, retries, retry_delay)
@@ -71,6 +71,8 @@ def run_monitor_checks(base_url: str, timeout: float, retries: int, retry_delay:
             checks[0] = check_health(base_url, timeout, 1, retry_delay)
         if _is_transient_netlify_failure(status):
             checks[1] = check_status(base_url, timeout, 1, retry_delay)
+    elif health.passed and status.passed and _is_transient_netlify_failure(analyze):
+        checks[2] = check_analyze(base_url, timeout, 0, retry_delay)
     return checks
 
 

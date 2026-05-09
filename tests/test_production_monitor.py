@@ -53,6 +53,27 @@ def test_monitor_keeps_persistent_status_failure(monkeypatch) -> None:
     assert calls["status"] == 2
 
 
+def test_monitor_rechecks_transient_analyze_after_healthy_diagnostics(monkeypatch) -> None:
+    calls = {"analyze": 0}
+    health_ok = production_monitor.RemoteCheck("Netlify/Render", "health", True, "status=200")
+    status_ok = production_monitor.RemoteCheck("Netlify/Render", "status", True, "products=335")
+    analyze_fail = production_monitor.RemoteCheck("Netlify/Render", "template analyze", False, "status=504, body=<empty>")
+    analyze_ok = production_monitor.RemoteCheck("analyze", "template analyze", True, "evidence=6")
+
+    def fake_analyze(*args, **kwargs):
+        calls["analyze"] += 1
+        return analyze_fail if calls["analyze"] == 1 else analyze_ok
+
+    monkeypatch.setattr(production_monitor, "check_health", lambda *args, **kwargs: health_ok)
+    monkeypatch.setattr(production_monitor, "check_status", lambda *args, **kwargs: status_ok)
+    monkeypatch.setattr(production_monitor, "check_analyze", fake_analyze)
+
+    checks = production_monitor.run_monitor_checks("https://example.test", 45, 2, 8)
+
+    assert [check.passed for check in checks] == [True, True, True]
+    assert calls["analyze"] == 2
+
+
 def test_monitor_does_not_recheck_when_analyze_fails(monkeypatch) -> None:
     calls = {"health": 0, "status": 0, "analyze": 0}
     health_fail = production_monitor.RemoteCheck("Netlify/Render", "health", False, "status=504, body=<empty>")
