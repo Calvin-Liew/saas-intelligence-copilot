@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
+from contextlib import asynccontextmanager
 from copy import deepcopy
 from time import monotonic
 from typing import Any
 
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -29,6 +31,14 @@ _STATUS_CACHE: tuple[float, dict[str, Any]] | None = None
 _STATUS_TTL_SECONDS = 60
 _OPTIONS_CACHE: tuple[float, dict[str, Any]] | None = None
 _OPTIONS_TTL_SECONDS = 300
+_WARMUP_RETRY_AFTER_SECONDS = 3
+_WARMUP_LOCK = threading.Lock()
+_WARMUP_THREAD: threading.Thread | None = None
+_WARMUP_STATE = {
+    "state": "idle",
+    "message": "Backend warmup has not started.",
+    "error": "",
+}
 
 
 class AnalyzeRequest(BaseModel):
@@ -43,8 +53,14 @@ class AnalyzeRequest(BaseModel):
     use_llm: bool = True
 
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    _start_warmup()
+    yield
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="SaaSScout API", version="0.1.0")
+    app = FastAPI(title="SaaSScout API", version="0.1.0", lifespan=_lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_frontend_origins(),
@@ -58,16 +74,23 @@ def create_app() -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/api/bootstrap")
+    def bootstrap() -> dict[str, Any]:
+        return _bootstrap_payload()
+
     @app.get("/api/status")
     def status() -> dict[str, Any]:
+        _require_warmup_ready()
         return _status_payload()
 
     @app.get("/api/options")
     def options() -> dict[str, Any]:
+        _require_warmup_ready()
         return _options_payload()
 
     @app.post("/api/analyze")
     def analyze(payload: AnalyzeRequest) -> dict[str, Any]:
+        _require_warmup_ready()
         required_features_text = ", ".join(
             [*payload.required_features, payload.additional_required_features]
         ).strip(", ")
@@ -107,6 +130,96 @@ def create_app() -> FastAPI:
         }
 
     return app
+
+
+def _start_warmup() -> None:
+    global _WARMUP_THREAD
+    with _WARMUP_LOCK:
+        if _WARMUP_STATE["state"] in {"warming", "ready"}:
+            if _WARMUP_STATE["state"] == "warming" and (
+                _WARMUP_THREAD is None or not _WARMUP_THREAD.is_alive()
+            ):
+                _set_warmup_state_locked(
+                    "error",
+                    "Backend warmup stopped before completing.",
+                    "Warmup thread stopped before completing.",
+                )
+            else:
+                return
+
+        if _WARMUP_STATE["state"] == "error":
+            return
+
+        _set_warmup_state_locked(
+            "warming",
+            "Preparing product data, Chroma indexes, enrichment metadata, and options.",
+        )
+        _WARMUP_THREAD = threading.Thread(
+            target=_warmup_worker,
+            name="saasscout-warmup",
+            daemon=True,
+        )
+        _WARMUP_THREAD.start()
+
+
+def _warmup_worker() -> None:
+    try:
+        _status_payload()
+        _options_payload()
+    except Exception as exc:
+        _set_warmup_state(
+            "error",
+            f"Backend warmup failed: {type(exc).__name__}.",
+            str(exc),
+        )
+        return
+    _set_warmup_state(
+        "ready",
+        "Product data, Chroma indexes, enrichment metadata, and options are ready.",
+    )
+
+
+def _bootstrap_payload() -> dict[str, Any]:
+    snapshot = _warmup_snapshot()
+    if snapshot["state"] == "idle":
+        _start_warmup()
+        snapshot = _warmup_snapshot()
+    return {
+        "ready": snapshot["state"] == "ready",
+        "warming": snapshot["state"] == "warming",
+        "error": snapshot["error"] if snapshot["state"] == "error" else "",
+        "message": snapshot["message"],
+    }
+
+
+def _require_warmup_ready() -> None:
+    snapshot = _warmup_snapshot()
+    if snapshot["state"] == "idle":
+        _start_warmup()
+        snapshot = _warmup_snapshot()
+    if snapshot["state"] == "ready":
+        return
+    raise HTTPException(
+        status_code=503,
+        detail=snapshot["message"],
+        headers={"Retry-After": str(_WARMUP_RETRY_AFTER_SECONDS)},
+    )
+
+
+def _warmup_snapshot() -> dict[str, str]:
+    with _WARMUP_LOCK:
+        return dict(_WARMUP_STATE)
+
+
+def _set_warmup_state(state: str, message: str, error: str = "") -> None:
+    with _WARMUP_LOCK:
+        _set_warmup_state_locked(state, message, error)
+
+
+def _set_warmup_state_locked(state: str, message: str, error: str = "") -> None:
+    _WARMUP_STATE["state"] = state
+    _WARMUP_STATE["message"] = message
+    _WARMUP_STATE["error"] = error
 
 
 def _status_payload() -> dict[str, Any]:

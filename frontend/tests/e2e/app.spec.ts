@@ -190,6 +190,16 @@ const analyzeResponse = {
 };
 
 test.beforeEach(async ({ page }) => {
+  await page.route("https://ui-test-api.local/api/bootstrap", async (route) => {
+    await route.fulfill({
+      json: {
+        ready: true,
+        warming: false,
+        error: "",
+        message: "Product data, Chroma indexes, enrichment metadata, and options are ready.",
+      },
+    });
+  });
   await page.route("https://ui-test-api.local/api/status", async (route) => {
     await route.fulfill({ json: statusResponse });
   });
@@ -233,7 +243,7 @@ test("loads status and exposes the primary analysis controls", async ({ page }) 
   await expect(page.getByRole("button", { name: /Run analysis/i })).toBeEnabled();
 });
 
-test("opens the workspace after status while full options continue loading", async ({ page }) => {
+test("opens the workspace while status and full options continue loading", async ({ page }) => {
   let releaseStatus: () => void = () => undefined;
   let releaseOptions: () => void = () => undefined;
   const statusGate = new Promise<void>((resolve) => {
@@ -257,39 +267,46 @@ test("opens the workspace after status while full options continue loading", asy
   await page.goto("/");
 
   await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
-
-  releaseStatus();
   await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeHidden({ timeout: 4000 });
   await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
   await expect(page.getByLabel("Analysis query")).toHaveValue(/Compare Zendesk/);
+
+  releaseStatus();
+  await expect(page.getByText("335", { exact: true })).toBeVisible();
 
   releaseOptions();
   await expect(page.getByText("Products")).toBeVisible();
 });
 
-test("keeps startup on screen with a retry action when loading fails", async ({ page }) => {
-  let statusAttempts = 0;
-  await page.unroute("https://ui-test-api.local/api/status");
-  await page.route("https://ui-test-api.local/api/status", async (route) => {
-    statusAttempts += 1;
-    if (statusAttempts === 1) {
+test("opens fallback workspace with a retry action when bootstrap loading fails", async ({ page }) => {
+  let bootstrapAttempts = 0;
+  await page.unroute("https://ui-test-api.local/api/bootstrap");
+  await page.route("https://ui-test-api.local/api/bootstrap", async (route) => {
+    bootstrapAttempts += 1;
+    if (bootstrapAttempts === 1) {
       await route.fulfill({ status: 400, body: "API is starting" });
       return;
     }
-    await route.fulfill({ json: statusResponse });
+    await route.fulfill({
+      json: {
+        ready: true,
+        warming: false,
+        error: "",
+        message: "Product data, Chroma indexes, enrichment metadata, and options are ready.",
+      },
+    });
   });
 
   await page.goto("/");
 
   await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeVisible();
-  await expect(page.getByText("The app could not load the live SaaSScout workspace.")).toBeVisible();
-  await expect(page.getByText("API is starting")).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Retry loading" }).click();
   await expect(page.getByRole("status", { name: "Loading SaaSScout" })).toBeHidden({ timeout: 4000 });
+  await expect(page.getByText("API is starting")).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Configure Analysis" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Preparing" }).first()).toBeDisabled();
+
+  await page.getByRole("button", { name: "Retry startup" }).click();
+  await expect(page.getByRole("button", { name: /Run analysis/i }).first()).toBeEnabled();
 });
 
 test("showcase preset buttons update the query", async ({ page }) => {

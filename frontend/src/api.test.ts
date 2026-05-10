@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchJson, normalizeAnalysisResult } from "./api";
+import { fetchJson, getBootstrap, normalizeAnalysisResult } from "./api";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -20,6 +21,27 @@ describe("normalizeAnalysisResult", () => {
 });
 
 describe("fetchJson", () => {
+  it("loads bootstrap with a short no-retry request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      ready: false,
+      warming: true,
+      error: "",
+      message: "Preparing",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getBootstrap()).resolves.toEqual({
+      ready: false,
+      warming: true,
+      error: "",
+      message: "Preparing",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/bootstrap"), expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }));
+  });
+
   it("retries transient network failures", async () => {
     const fetchMock = vi
       .fn()
@@ -60,6 +82,24 @@ describe("fetchJson", () => {
     await expect(fetchJson("/api/status", undefined, { retries: 0, retryDelayMs: 0 })).rejects.toThrow(
       /Render is waking up/,
     );
+  });
+
+  it("aborts requests that exceed the configured startup timeout", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      })),
+    );
+
+    const request = expect(fetchJson("/api/bootstrap", undefined, { retries: 0, timeoutMs: 25 })).rejects.toThrow(
+      /Request timed out after 25ms/,
+    );
+    await vi.advanceTimersByTimeAsync(25);
+
+    await request;
+    vi.useRealTimers();
   });
 });
 

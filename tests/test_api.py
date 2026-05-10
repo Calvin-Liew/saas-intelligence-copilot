@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
+import threading
 from types import SimpleNamespace
 
 import pandas as pd
@@ -21,10 +22,14 @@ def reset_api_caches():
     api_module._STATUS_CACHE = None
     api_module._CHROMA_STATUS_CACHE = None
     api_module._OPTIONS_CACHE = None
+    api_module._WARMUP_THREAD = None
+    api_module._set_warmup_state("ready", "Test warmup is ready.")
     yield
     api_module._STATUS_CACHE = None
     api_module._CHROMA_STATUS_CACHE = None
     api_module._OPTIONS_CACHE = None
+    api_module._WARMUP_THREAD = None
+    api_module._set_warmup_state("idle", "Backend warmup has not started.")
 
 
 def test_health_endpoint() -> None:
@@ -46,6 +51,100 @@ def test_health_endpoint_stays_dependency_free(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_bootstrap_starts_background_warmup_without_inline_data_load(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    worker_started = threading.Event()
+    release_worker = threading.Event()
+
+    def fake_worker() -> None:
+        worker_started.set()
+        release_worker.wait(timeout=2)
+        api_module._set_warmup_state("ready", "Test warmup is ready.")
+
+    def fail_if_loaded():
+        raise AssertionError("bootstrap should not load processed data inline")
+
+    api_module._set_warmup_state("idle", "Backend warmup has not started.")
+    monkeypatch.setattr(api_module, "_warmup_worker", fake_worker)
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fail_if_loaded)
+    test_client = TestClient(api_module.create_app())
+
+    response = test_client.get("/api/bootstrap")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ready": False,
+        "warming": True,
+        "error": "",
+        "message": "Preparing product data, Chroma indexes, enrichment metadata, and options.",
+    }
+    assert worker_started.wait(timeout=1)
+    release_worker.set()
+    if api_module._WARMUP_THREAD is not None:
+        api_module._WARMUP_THREAD.join(timeout=2)
+
+
+def test_warmup_worker_populates_status_and_options_once(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    calls = {"status": 0, "options": 0}
+
+    def fake_status_payload():
+        calls["status"] += 1
+        api_module._STATUS_CACHE = (999999999.0, {"source": "test"})
+        return {"source": "test"}
+
+    def fake_options_payload():
+        calls["options"] += 1
+        api_module._OPTIONS_CACHE = (999999999.0, {"categories": ["All"]})
+        return {"categories": ["All"]}
+
+    monkeypatch.setattr(api_module, "_status_payload", fake_status_payload)
+    monkeypatch.setattr(api_module, "_options_payload", fake_options_payload)
+    api_module._set_warmup_state("warming", "Preparing test warmup.")
+
+    api_module._warmup_worker()
+
+    assert calls == {"status": 1, "options": 1}
+    assert api_module._warmup_snapshot()["state"] == "ready"
+    assert api_module._STATUS_CACHE is not None
+    assert api_module._OPTIONS_CACHE is not None
+
+
+def test_data_endpoints_return_fast_503_while_warming(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    def fail_if_loaded():
+        raise AssertionError("warming endpoints should not load data inline")
+
+    api_module._set_warmup_state("warming", "Preparing test warmup.")
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fail_if_loaded)
+    test_client = TestClient(api_module.create_app())
+
+    status_response = test_client.get("/api/status")
+    options_response = test_client.get("/api/options")
+    analyze_response = test_client.post(
+        "/api/analyze",
+        json={
+            "query": "Compare Zendesk and Freshdesk.",
+            "category": "Customer Support",
+            "max_monthly_price": None,
+            "required_features": [],
+            "additional_required_features": "",
+            "compare_tools": [],
+            "additional_tool_names": "",
+            "top_k": 3,
+            "use_llm": False,
+        },
+    )
+
+    for response in [status_response, options_response, analyze_response]:
+        assert response.status_code == 503
+        assert response.headers["retry-after"] == "3"
+        assert response.json()["detail"] == "Preparing test warmup."
 
 
 def test_cors_allows_netlify_production_and_deploy_urls(monkeypatch) -> None:

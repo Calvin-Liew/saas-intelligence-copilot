@@ -17,12 +17,13 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import { analyze, getOptions, getStatus } from "./api";
-import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, DemoPreset, Dict } from "./types";
+import { analyze, getBootstrap, getOptions, getStatus } from "./api";
+import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, BootstrapStatus, DemoPreset, Dict } from "./types";
 
 type Tab = "answer" | "scorecard" | "reviews" | "evidence" | "alternatives";
 type CellValue = string | number | boolean | null | undefined;
 const SPLASH_MIN_MS = 950;
+const BOOTSTRAP_POLL_MS = 3000;
 
 const fallbackOptions: ApiOptions = {
   categories: ["All", "Crm", "Customer Support", "Password Managers", "Project Management", "Website Builders"],
@@ -87,9 +88,16 @@ const fallbackOptions: ApiOptions = {
 };
 
 const initialPreset = fallbackOptions.demo_presets[0];
+const initialBootstrap: BootstrapStatus = {
+  ready: false,
+  warming: true,
+  error: "",
+  message: "Preparing product data, Chroma indexes, enrichment metadata, and options.",
+};
 
 export default function App() {
   const [status, setStatus] = useState<ApiStatus | null>(null);
+  const [bootstrap, setBootstrap] = useState<BootstrapStatus>(initialBootstrap);
   const [options, setOptions] = useState<ApiOptions>(fallbackOptions);
   const [selectedPreset, setSelectedPreset] = useState(0);
   const [query, setQuery] = useState(initialPreset.query);
@@ -119,55 +127,81 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
     let splashTimer: number | undefined;
-    const startedAt = Date.now();
+    let pollTimer: number | undefined;
+    let liveDataRequested = false;
 
     setShowStartupSplash(true);
+    setBootstrap(initialBootstrap);
+    setStatus(null);
     setStartupError("");
     setOptionsWarning("");
     setError("");
 
-    function openWorkspace() {
-      const remainingDelay = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt));
-      splashTimer = window.setTimeout(() => {
-        if (mounted) setShowStartupSplash(false);
-      }, remainingDelay);
+    splashTimer = window.setTimeout(() => {
+      if (mounted) setShowStartupSplash(false);
+    }, SPLASH_MIN_MS);
+
+    function scheduleBootstrapPoll() {
+      pollTimer = window.setTimeout(() => {
+        void pollBootstrap();
+      }, BOOTSTRAP_POLL_MS);
     }
 
-    async function loadStartupData() {
-      const optionsRequest = getOptions()
-        .then((result) => ({ ok: true as const, result }))
-        .catch((err) => ({ ok: false as const, err }));
+    async function loadLiveData() {
+      if (liveDataRequested) return;
+      liveDataRequested = true;
+      const [statusResult, optionsResult] = await Promise.allSettled([getStatus(), getOptions()]);
 
-      try {
-        const statusResult = await getStatus();
-        if (!mounted) return;
-        setStatus(statusResult);
-        setUseLlm(Boolean(statusResult.llm.available));
-        openWorkspace();
-      } catch (err) {
-        if (!mounted) return;
-        setStartupError(err instanceof Error ? err.message : String(err));
-        return;
+      if (!mounted) return;
+      if (statusResult.status === "fulfilled") {
+        setStatus(statusResult.value);
+        setUseLlm(Boolean(statusResult.value.llm.available));
+        setStartupError("");
+      } else {
+        setStartupError(statusResult.reason instanceof Error ? statusResult.reason.message : String(statusResult.reason));
       }
 
-      const optionsResult = await optionsRequest;
-      if (!mounted) return;
-      if (optionsResult.ok) {
-        setOptions(optionsResult.result);
+      if (optionsResult.status === "fulfilled") {
+        setOptions(optionsResult.value);
+        setOptionsWarning("");
       } else {
         setOptionsWarning(
           `Using compact fallback controls because the full option list is still loading: ${
-            optionsResult.err instanceof Error ? optionsResult.err.message : String(optionsResult.err)
+            optionsResult.reason instanceof Error ? optionsResult.reason.message : String(optionsResult.reason)
           }`,
         );
       }
     }
 
-    void loadStartupData();
+    async function pollBootstrap() {
+      try {
+        const nextBootstrap = await getBootstrap();
+        if (!mounted) return;
+        setBootstrap(nextBootstrap);
+        if (nextBootstrap.ready) {
+          setStartupError("");
+          await loadLiveData();
+          return;
+        }
+        if (nextBootstrap.error) {
+          setStartupError(nextBootstrap.error || nextBootstrap.message);
+          return;
+        }
+        setStartupError("");
+      } catch (err) {
+        if (!mounted) return;
+        setStartupError(err instanceof Error ? err.message : String(err));
+      }
+
+      if (mounted) scheduleBootstrapPoll();
+    }
+
+    void pollBootstrap();
 
     return () => {
       mounted = false;
       if (splashTimer) window.clearTimeout(splashTimer);
+      if (pollTimer) window.clearTimeout(pollTimer);
     };
   }, [startupAttempt]);
 
@@ -219,10 +253,18 @@ export default function App() {
   }
 
   async function runAnalysis() {
+    if (!bootstrap.ready) {
+      setError(bootstrap.message || "SaaSScout is still preparing the analysis backend.");
+      return;
+    }
     await submitAnalysis(buildAnalyzePayload());
   }
 
   async function retryWithTemplateMode() {
+    if (!bootstrap.ready) {
+      setError(bootstrap.message || "SaaSScout is still preparing the analysis backend.");
+      return;
+    }
     await submitAnalysis(templateRetryPayload ?? buildAnalyzePayload(true));
   }
 
@@ -241,12 +283,17 @@ export default function App() {
     `${topK} results`,
     useLlm ? "LLM rewrite" : "Template answer",
   ];
-  const headerStatus = compactHeaderStatus(status);
+  const headerStatus = compactHeaderStatus(status, bootstrap);
+  const analysisDisabled = loading || !query.trim() || !bootstrap.ready;
+  const runButtonLabel = loading ? "Analyzing" : bootstrap.ready ? "Run analysis" : "Preparing";
+  const runButtonIcon = loading || !bootstrap.ready
+    ? <Loader2 className="animate-spin" size={18} />
+    : <Search size={18} />;
 
   return (
     <main className="min-h-screen bg-canvas text-ink">
       {showStartupSplash ? (
-        <StartupSplash status={status} error={startupError} onRetry={retryStartup} />
+        <StartupSplash bootstrap={bootstrap} error={startupError} onRetry={retryStartup} />
       ) : (
         <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-4 lg:px-6">
           <header className="app-header">
@@ -280,11 +327,20 @@ export default function App() {
             </div>
           </header>
 
+        {startupError ? (
+          <Notice tone="error">
+            <span>{startupError}</span>
+            <button className="notice-action" type="button" onClick={retryStartup}>
+              Retry startup
+            </button>
+          </Notice>
+        ) : null}
+        {!bootstrap.ready && !startupError ? <Notice tone="warn">{bootstrap.message}</Notice> : null}
         {error ? (
           <Notice tone="error">
             <span>{error}</span>
             {templateRetryPayload ? (
-              <button className="notice-action" type="button" onClick={retryWithTemplateMode} disabled={loading}>
+              <button className="notice-action" type="button" onClick={retryWithTemplateMode} disabled={loading || !bootstrap.ready}>
                 Retry with template mode
               </button>
             ) : null}
@@ -445,9 +501,9 @@ export default function App() {
                   <h2>Describe the evaluation</h2>
                   <p>Use natural language, then refine the analysis with the setup controls.</p>
                 </div>
-                <button className="primary-button" type="button" onClick={() => void runAnalysis()} disabled={loading || !query.trim()}>
-                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                  {loading ? "Analyzing" : "Run analysis"}
+                <button className="primary-button" type="button" onClick={() => void runAnalysis()} disabled={analysisDisabled}>
+                  {runButtonIcon}
+                  {runButtonLabel}
                 </button>
               </div>
 
@@ -470,9 +526,9 @@ export default function App() {
                     ))}
                   </div>
                 </div>
-                <button className="primary-button query-run-secondary" type="button" onClick={() => void runAnalysis()} disabled={loading || !query.trim()}>
-                  {loading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                  {loading ? "Analyzing" : "Run analysis"}
+                <button className="primary-button query-run-secondary" type="button" onClick={() => void runAnalysis()} disabled={analysisDisabled}>
+                  {runButtonIcon}
+                  {runButtonLabel}
                 </button>
               </div>
             </div>
@@ -546,10 +602,10 @@ export default function App() {
   );
 }
 
-function StartupSplash({ status, error, onRetry }: { status: ApiStatus | null; error: string; onRetry: () => void }) {
+function StartupSplash({ bootstrap, error, onRetry }: { bootstrap: BootstrapStatus; error: string; onRetry: () => void }) {
   const message = error
     ? "The app could not load the live SaaSScout workspace. Check the API connection, then retry."
-    : (status?.source_notice ?? "Loading product data, Chroma indexes, enrichment metadata, and demo options.");
+    : (bootstrap.message || "Preparing product data, Chroma indexes, enrichment metadata, and demo options.");
   return (
     <div className="startup-splash" role="status" aria-live="polite" aria-label="Loading SaaSScout">
       <div className={error ? "startup-card startup-card-error-state" : "startup-card"}>
@@ -656,19 +712,18 @@ function StatusPill({ icon, label, value, title }: { icon: ReactNode; label: str
   );
 }
 
-function compactHeaderStatus(status: ApiStatus | null) {
-  const ready = Boolean(status?.chroma.ready && status.enrichment?.ready && status.llm.status === "ok");
+function compactHeaderStatus(status: ApiStatus | null, bootstrap: BootstrapStatus) {
   const enrichment = status?.enrichment
     ? `${status.enrichment.factgrid_matches} / ${status.enrichment.wikidata_matches} / ${compactNumber(status.enrichment.open_source_alternatives)}`
-    : "Loading";
+    : (bootstrap.ready ? "Loading" : "Preparing");
   return {
-    readyLabel: ready ? "Ready" : "Loading",
-    data: status?.source === "Kaggle/local data" ? "Kaggle data" : (status?.source ?? "Loading"),
+    readyLabel: bootstrap.ready ? "Ready" : (bootstrap.error ? "Action needed" : "Preparing"),
+    data: status?.source === "Kaggle/local data" ? "Kaggle data" : (status?.source ?? (bootstrap.ready ? "Loading" : "Preparing")),
     products: status ? String(status.product_count) : "-",
     reviews: status ? compactNumber(status.review_count) : "-",
-    chroma: status?.chroma.ready ? "Ready" : (status?.chroma.status ?? "Loading"),
+    chroma: status?.chroma.ready ? "Ready" : (status?.chroma.status ?? (bootstrap.ready ? "Loading" : "Preparing")),
     enrichment,
-    llm: status?.llm.provider === "groq" ? "Groq Qwen" : (status?.llm.label ?? "Loading"),
+    llm: status?.llm.provider === "groq" ? "Groq Qwen" : (status?.llm.label ?? (bootstrap.ready ? "Loading" : "Preparing")),
   };
 }
 

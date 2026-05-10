@@ -36,6 +36,13 @@ export interface ApiStatus {
   llm: LlmState;
 }
 
+export interface BootstrapStatus {
+  ready: boolean;
+  warming: boolean;
+  error: string;
+  message: string;
+}
+
 export interface FeatureOption {
   id: string;
   label: string;
