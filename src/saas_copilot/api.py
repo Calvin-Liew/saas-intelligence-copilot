@@ -135,10 +135,11 @@ def create_app() -> FastAPI:
 def _start_warmup() -> None:
     global _WARMUP_THREAD
     with _WARMUP_LOCK:
-        if _WARMUP_STATE["state"] in {"warming", "ready"}:
-            if _WARMUP_STATE["state"] == "warming" and (
-                _WARMUP_THREAD is None or not _WARMUP_THREAD.is_alive()
-            ):
+        thread_alive = _WARMUP_THREAD is not None and _WARMUP_THREAD.is_alive()
+        if _WARMUP_STATE["state"] == "ready":
+            return
+        if _WARMUP_STATE["state"] == "warming":
+            if not thread_alive:
                 _set_warmup_state_locked(
                     "error",
                     "Backend warmup stopped before completing.",
@@ -146,9 +147,6 @@ def _start_warmup() -> None:
                 )
             else:
                 return
-
-        if _WARMUP_STATE["state"] == "error":
-            return
 
         _set_warmup_state_locked(
             "warming",
@@ -181,7 +179,7 @@ def _warmup_worker() -> None:
 
 def _bootstrap_payload() -> dict[str, Any]:
     snapshot = _warmup_snapshot()
-    if snapshot["state"] == "idle":
+    if snapshot["state"] in {"idle", "error"}:
         _start_warmup()
         snapshot = _warmup_snapshot()
     return {
@@ -194,7 +192,7 @@ def _bootstrap_payload() -> dict[str, Any]:
 
 def _require_warmup_ready() -> None:
     snapshot = _warmup_snapshot()
-    if snapshot["state"] == "idle":
+    if snapshot["state"] in {"idle", "error"}:
         _start_warmup()
         snapshot = _warmup_snapshot()
     if snapshot["state"] == "ready":

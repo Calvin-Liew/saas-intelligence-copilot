@@ -87,6 +87,37 @@ def test_bootstrap_starts_background_warmup_without_inline_data_load(monkeypatch
         api_module._WARMUP_THREAD.join(timeout=2)
 
 
+def test_bootstrap_restarts_background_warmup_after_error(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    worker_started = threading.Event()
+    release_worker = threading.Event()
+
+    def fake_worker() -> None:
+        worker_started.set()
+        release_worker.wait(timeout=2)
+        api_module._set_warmup_state("ready", "Recovered warmup is ready.")
+
+    api_module._set_warmup_state("error", "Backend warmup failed: HTTPError.", "transient")
+    monkeypatch.setattr(api_module, "_warmup_worker", fake_worker)
+    test_client = TestClient(api_module.create_app())
+
+    response = test_client.get("/api/bootstrap")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ready": False,
+        "warming": True,
+        "error": "",
+        "message": "Preparing product data, Chroma indexes, enrichment metadata, and options.",
+    }
+    assert worker_started.wait(timeout=1)
+    release_worker.set()
+    if api_module._WARMUP_THREAD is not None:
+        api_module._WARMUP_THREAD.join(timeout=2)
+    assert api_module._warmup_snapshot()["state"] == "ready"
+
+
 def test_warmup_worker_populates_status_and_options_once(monkeypatch) -> None:
     from saas_copilot import api as api_module
 
@@ -145,6 +176,37 @@ def test_data_endpoints_return_fast_503_while_warming(monkeypatch) -> None:
         assert response.status_code == 503
         assert response.headers["retry-after"] == "3"
         assert response.json()["detail"] == "Preparing test warmup."
+
+
+def test_data_endpoints_restart_warmup_after_error(monkeypatch) -> None:
+    from saas_copilot import api as api_module
+
+    worker_started = threading.Event()
+    release_worker = threading.Event()
+
+    def fake_worker() -> None:
+        worker_started.set()
+        release_worker.wait(timeout=2)
+        api_module._set_warmup_state("ready", "Recovered warmup is ready.")
+
+    def fail_if_loaded():
+        raise AssertionError("error retry should start background warmup without inline data load")
+
+    api_module._set_warmup_state("error", "Backend warmup failed: HTTPError.", "transient")
+    monkeypatch.setattr(api_module, "_warmup_worker", fake_worker)
+    monkeypatch.setattr(api_module, "load_processed_or_demo", fail_if_loaded)
+    test_client = TestClient(api_module.create_app())
+
+    response = test_client.get("/api/status")
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "3"
+    assert response.json()["detail"] == "Preparing product data, Chroma indexes, enrichment metadata, and options."
+    assert worker_started.wait(timeout=1)
+    release_worker.set()
+    if api_module._WARMUP_THREAD is not None:
+        api_module._WARMUP_THREAD.join(timeout=2)
+    assert api_module._warmup_snapshot()["state"] == "ready"
 
 
 def test_cors_allows_netlify_production_and_deploy_urls(monkeypatch) -> None:

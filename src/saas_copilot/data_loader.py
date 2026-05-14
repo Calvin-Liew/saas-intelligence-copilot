@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import time
 import zipfile
 from pathlib import Path
 from typing import Iterable
@@ -57,6 +58,7 @@ PROCESSED_ARTIFACT_FILES = [
     "open_source_alternatives.csv",
     "enrichment_qa.csv",
 ]
+DOWNLOAD_RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
 
 _PROCESSED_CACHE: dict[
     tuple[object, ...], tuple[pd.DataFrame, pd.DataFrame, str]
@@ -760,13 +762,44 @@ def _has_chroma_index(paths=PATHS) -> bool:
     return (paths.index_dir / "chroma" / "chroma.sqlite3").exists()
 
 
-def _download_file(url: str, target: Path) -> None:
-    with requests.get(url, stream=True, timeout=120) as response:
-        response.raise_for_status()
-        with target.open("wb") as file:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    file.write(chunk)
+def _download_file(url: str, target: Path, retries: int = 2, retry_delay: float = 2.0) -> None:
+    attempts = max(0, retries) + 1
+    tmp_target = target.with_name(f"{target.name}.tmp")
+
+    for attempt in range(1, attempts + 1):
+        try:
+            if tmp_target.exists():
+                tmp_target.unlink()
+            with requests.get(url, stream=True, timeout=120) as response:
+                response.raise_for_status()
+                with tmp_target.open("wb") as file:
+                    for chunk in response.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            file.write(chunk)
+            tmp_target.replace(target)
+            return
+        except requests.RequestException as exc:
+            if tmp_target.exists():
+                tmp_target.unlink()
+            if attempt == attempts or not _is_retryable_download_error(exc):
+                raise
+            time.sleep(retry_delay * attempt)
+
+
+def _is_retryable_download_error(exc: requests.RequestException) -> bool:
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", None)
+    if status_code is not None:
+        return int(status_code) in DOWNLOAD_RETRYABLE_STATUS_CODES
+    return isinstance(
+        exc,
+        (
+            requests.ConnectionError,
+            requests.Timeout,
+            requests.ChunkedEncodingError,
+            requests.ContentDecodingError,
+        ),
+    )
 
 
 def _extract_artifact(artifact_path: Path, paths=PATHS) -> None:
