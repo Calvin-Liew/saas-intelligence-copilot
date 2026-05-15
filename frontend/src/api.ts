@@ -1,6 +1,7 @@
 import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, BootstrapStatus } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : "same-origin");
+const PRODUCTION_API_BASE_URL = "https://saas-intelligence-copilot-api.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : PRODUCTION_API_BASE_URL);
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 interface FetchRetryOptions {
