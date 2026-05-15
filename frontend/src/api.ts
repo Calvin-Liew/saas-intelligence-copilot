@@ -14,15 +14,15 @@ interface FetchRetryOptions {
 }
 
 export async function getBootstrap(): Promise<BootstrapStatus> {
-  return fetchJson<BootstrapStatus>("/api/bootstrap", undefined, { retries: 0, timeoutMs: 2500 });
+  return fetchJson<BootstrapStatus>("/api/bootstrap", undefined, { retries: 2, retryDelayMs: 3000, timeoutMs: 15000 });
 }
 
 export async function getStatus(): Promise<ApiStatus> {
-  return fetchJson<ApiStatus>("/api/status", undefined, { retries: 0, timeoutMs: 5000 });
+  return fetchJson<ApiStatus>("/api/status", undefined, { retries: 2, retryDelayMs: 3000, timeoutMs: 30000 });
 }
 
 export async function getOptions(): Promise<ApiOptions> {
-  return fetchJson<ApiOptions>("/api/options", undefined, { retries: 0, timeoutMs: 5000 });
+  return fetchJson<ApiOptions>("/api/options", undefined, { retries: 2, retryDelayMs: 3000, timeoutMs: 30000 });
 }
 
 export async function analyze(payload: AnalyzeRequest): Promise<AnalysisResult> {
