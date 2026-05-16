@@ -11,6 +11,8 @@ import requests
 
 DEFAULT_SITE_URL = "https://saas-intelligence-copilot-calvi.netlify.app"
 RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+DEFAULT_STARTUP_TIMEOUT = 360.0
+DEFAULT_POLL_INTERVAL = 10.0
 
 
 @dataclass
@@ -28,10 +30,29 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=20.0, help="HTTP timeout in seconds.")
     parser.add_argument("--retries", type=int, default=2, help="Retries for transient 5xx, rate limit, or timeout failures.")
     parser.add_argument("--retry-delay", type=float, default=8.0, help="Seconds to wait between retries.")
+    parser.add_argument(
+        "--startup-timeout",
+        type=float,
+        default=DEFAULT_STARTUP_TIMEOUT,
+        help="Seconds to wait for /api/status to finish Render data/index bootstrap.",
+    )
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=DEFAULT_POLL_INTERVAL,
+        help="Seconds to wait between readiness polls while the backend is starting.",
+    )
     args = parser.parse_args()
 
     site_url = args.site_url.rstrip("/")
-    checks = run_monitor_checks(site_url, args.timeout, args.retries, args.retry_delay)
+    checks = run_monitor_checks(
+        site_url,
+        args.timeout,
+        args.retries,
+        args.retry_delay,
+        args.startup_timeout,
+        args.poll_interval,
+    )
     if args.deploy_url:
         checks.append(
             check_status(args.deploy_url.rstrip("/"), args.timeout, args.retries, args.retry_delay, name="unique deploy status")
@@ -54,26 +75,57 @@ def main() -> None:
     print("\nResult: PASS. Netlify, Render, Chroma, and template analyze path are reachable.")
 
 
-def run_monitor_checks(base_url: str, timeout: float, retries: int, retry_delay: float) -> list[RemoteCheck]:
-    # Render's free tier can return transient Netlify 504s while the backend
-    # wakes up and initializes the data/index path. Run diagnostics around the
-    # user-critical analyze path, then recheck only transient warm-up failures.
-    analyze = check_analyze(base_url, timeout, retries, retry_delay)
+def run_monitor_checks(
+    base_url: str,
+    timeout: float,
+    retries: int,
+    retry_delay: float,
+    startup_timeout: float = DEFAULT_STARTUP_TIMEOUT,
+    poll_interval: float = DEFAULT_POLL_INTERVAL,
+) -> list[RemoteCheck]:
+    # /health can turn green before the production data, Chroma indexes, and
+    # cached options are ready. Wait for /api/status first so the analyze check
+    # validates the user path instead of burning its timeout during bootstrap.
     health = check_health(base_url, timeout, retries, retry_delay)
-    status = check_status(base_url, timeout, retries, retry_delay)
-    checks = [health, status, analyze]
+    status = wait_for_ready_status(base_url, timeout, startup_timeout, poll_interval)
 
-    # Render free-tier wake-up can return transient Netlify 504s for the first
-    # diagnostic checks. Recheck those diagnostics after analyze succeeds so
-    # the monitor fails on persistent outages, not a recovered cold-start edge.
-    if analyze.passed:
-        if _is_transient_netlify_failure(health):
-            checks[0] = check_health(base_url, timeout, 1, retry_delay)
-        if _is_transient_netlify_failure(status):
-            checks[1] = check_status(base_url, timeout, 1, retry_delay)
-    elif health.passed and status.passed and _is_transient_netlify_failure(analyze):
-        checks[2] = check_analyze(base_url, timeout, 0, retry_delay)
-    return checks
+    if status.passed and _is_transient_netlify_failure(health):
+        health = check_health(base_url, timeout, 1, retry_delay)
+
+    if not status.passed:
+        return [
+            health,
+            status,
+            RemoteCheck("analyze", "template analyze", False, "skipped because /api/status was not ready"),
+        ]
+
+    analyze = check_analyze(base_url, timeout, retries, retry_delay)
+    if _is_transient_netlify_failure(analyze):
+        analyze = check_analyze(base_url, timeout, 0, retry_delay)
+
+    return [health, status, analyze]
+
+
+def wait_for_ready_status(base_url: str, timeout: float, startup_timeout: float, poll_interval: float) -> RemoteCheck:
+    deadline = time.monotonic() + max(0.0, startup_timeout)
+    attempts = 0
+
+    while True:
+        attempts += 1
+        status = check_status(base_url, timeout, retries=0, retry_delay=0)
+        if status.passed:
+            if attempts == 1:
+                return status
+            return RemoteCheck(status.layer, status.name, True, f"{status.detail}; ready_after_polls={attempts}")
+
+        last_status = status
+        if not (_is_status_starting(status) or _is_transient_netlify_failure(status)):
+            return status
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return RemoteCheck(status.layer, status.name, False, f"{status.detail}; readiness_timeout={startup_timeout:g}s")
+        time.sleep(min(max(0.0, poll_interval), remaining))
 
 
 def _is_transient_netlify_failure(check: RemoteCheck) -> bool:
@@ -86,6 +138,13 @@ def _is_transient_netlify_failure(check: RemoteCheck) -> bool:
         or "status=504" in detail
         or "timeout" in detail
     )
+
+
+def _is_status_starting(check: RemoteCheck) -> bool:
+    if check.passed or check.name != "status":
+        return False
+    detail = check.detail.lower()
+    return "preparing product data" in detail or "chroma indexes" in detail
 
 
 def check_health(base_url: str, timeout: float, retries: int, retry_delay: float) -> RemoteCheck:

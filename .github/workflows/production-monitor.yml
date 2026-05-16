@@ -12,7 +12,7 @@ jobs:
   monitor:
     name: Check SaaSScout production demo
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -27,4 +27,4 @@ jobs:
         run: python -m pip install --upgrade requests
 
       - name: Run production monitor
-        run: python scripts/production_monitor.py --site-url https://saas-intelligence-copilot-calvi.netlify.app --timeout 45 --retries 2 --retry-delay 8
+        run: python scripts/production_monitor.py --site-url https://saas-intelligence-copilot-calvi.netlify.app --timeout 45 --retries 2 --retry-delay 8 --startup-timeout 360 --poll-interval 10
