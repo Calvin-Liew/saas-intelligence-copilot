@@ -2,10 +2,10 @@ import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, BootstrapSt
 
 const PRODUCTION_API_BASE_URL = "https://saas-intelligence-copilot-api.onrender.com";
 const CONFIGURED_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_BASE_URL = CONFIGURED_API_BASE_URL && CONFIGURED_API_BASE_URL !== "same-origin"
-  ? CONFIGURED_API_BASE_URL
-  : (import.meta.env.DEV ? "http://localhost:8000" : PRODUCTION_API_BASE_URL);
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+const API_BASE_URL = CONFIGURED_API_BASE_URL === "same-origin"
+  ? "same-origin"
+  : (CONFIGURED_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : PRODUCTION_API_BASE_URL));
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 502, 503, 504]);
 
 interface FetchRetryOptions {
   retries?: number;
@@ -14,15 +14,19 @@ interface FetchRetryOptions {
 }
 
 export async function getBootstrap(): Promise<BootstrapStatus> {
-  return fetchJson<BootstrapStatus>("/api/bootstrap", undefined, { retries: 2, retryDelayMs: 3000, timeoutMs: 15000 });
+  return fetchJson<BootstrapStatus>("/api/bootstrap", undefined, { retries: 1, retryDelayMs: 1500, timeoutMs: 15000 });
+}
+
+export async function retryBootstrap(): Promise<BootstrapStatus> {
+  return fetchJson<BootstrapStatus>("/api/bootstrap/retry", { method: "POST" }, { retries: 0, timeoutMs: 15000 });
 }
 
 export async function getStatus(): Promise<ApiStatus> {
-  return fetchJson<ApiStatus>("/api/status", undefined, { retries: 2, retryDelayMs: 3000, timeoutMs: 30000 });
+  return fetchJson<ApiStatus>("/api/status", undefined, { retries: 1, retryDelayMs: 1500, timeoutMs: 30000 });
 }
 
 export async function getOptions(): Promise<ApiOptions> {
-  return fetchJson<ApiOptions>("/api/options", undefined, { retries: 2, retryDelayMs: 3000, timeoutMs: 30000 });
+  return fetchJson<ApiOptions>("/api/options", undefined, { retries: 1, retryDelayMs: 1500, timeoutMs: 30000 });
 }
 
 export async function analyze(payload: AnalyzeRequest): Promise<AnalysisResult> {
@@ -30,7 +34,7 @@ export async function analyze(payload: AnalyzeRequest): Promise<AnalysisResult> 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  }, { retries: 8, retryDelayMs: 3000, timeoutMs: 90000 });
+  }, { retries: 1, retryDelayMs: 1500, timeoutMs: 90000 });
   return normalizeAnalysisResult(result);
 }
 

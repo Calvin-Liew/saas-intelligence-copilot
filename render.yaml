@@ -3,7 +3,7 @@ services:
     name: saas-intelligence-copilot-api
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-prod.txt && PYTHONPATH=src python scripts/bootstrap_deploy_data.py
     startCommand: PYTHONPATH=src uvicorn saas_copilot.api:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
@@ -19,9 +19,13 @@ services:
         value: "1"
       - key: PRODUCTION_MODE
         value: "1"
+      - key: ALLOW_RUNTIME_ARTIFACT_BOOTSTRAP
+        value: "0"
       - key: FRONTEND_ORIGINS
         sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: DATA_ARTIFACT_URL
-        sync: false
+        value: https://github.com/Calvin-Liew/saas-intelligence-copilot/releases/download/v1/saas-demo-data-v1.zip
+      - key: DATA_ARTIFACT_SHA256
+        value: 1348aa5bfe11512192d635ffdc7ab76a072e93ac87d077e6eb5c44b4ab115550

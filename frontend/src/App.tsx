@@ -17,7 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
-import { analyze, getBootstrap, getOptions, getStatus } from "./api";
+import { analyze, getBootstrap, getOptions, getStatus, retryBootstrap } from "./api";
 import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, BootstrapStatus, DemoPreset, Dict } from "./types";
 
 type Tab = "answer" | "scorecard" | "reviews" | "evidence" | "alternatives";
@@ -268,8 +268,15 @@ export default function App() {
     await submitAnalysis(templateRetryPayload ?? buildAnalyzePayload(true));
   }
 
-  function retryStartup() {
-    setStartupAttempt((attempt) => attempt + 1);
+  async function retryStartup() {
+    setStartupError("");
+    try {
+      setBootstrap(await retryBootstrap());
+    } catch (err) {
+      setStartupError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setStartupAttempt((attempt) => attempt + 1);
+    }
   }
 
   const preset = options.demo_presets[selectedPreset];
@@ -602,7 +609,7 @@ export default function App() {
   );
 }
 
-function StartupSplash({ bootstrap, error, onRetry }: { bootstrap: BootstrapStatus; error: string; onRetry: () => void }) {
+function StartupSplash({ bootstrap, error, onRetry }: { bootstrap: BootstrapStatus; error: string; onRetry: () => void | Promise<void> }) {
   const message = error
     ? "The app could not load the live SaaSScout workspace. Check the API connection, then retry."
     : (bootstrap.message || "Preparing product data, Chroma indexes, enrichment metadata, and demo options.");
@@ -626,7 +633,7 @@ function StartupSplash({ bootstrap, error, onRetry }: { bootstrap: BootstrapStat
           <>
             <div className="startup-error">{error}</div>
             <div className="startup-actions">
-              <button className="primary-button" type="button" onClick={onRetry}>
+              <button className="primary-button" type="button" onClick={() => void onRetry()}>
                 <RotateCcw size={16} />
                 Retry loading
               </button>

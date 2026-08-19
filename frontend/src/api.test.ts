@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchJson, getBootstrap, normalizeAnalysisResult } from "./api";
+import { fetchJson, getBootstrap, normalizeAnalysisResult, retryBootstrap } from "./api";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -21,7 +21,7 @@ describe("normalizeAnalysisResult", () => {
 });
 
 describe("fetchJson", () => {
-  it("loads bootstrap with a short no-retry request", async () => {
+  it("loads bootstrap through the configured API path", async () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
       ready: false,
       warming: true,
@@ -38,6 +38,24 @@ describe("fetchJson", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/bootstrap"), expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }));
+  });
+
+  it("uses an explicit POST to retry failed bootstrap", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+      ready: false,
+      warming: true,
+      error: "",
+      message: "Preparing",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await retryBootstrap();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/api/bootstrap/retry"), expect.objectContaining({
+      method: "POST",
       signal: expect.any(AbortSignal),
     }));
   });
@@ -66,6 +84,16 @@ describe("fetchJson", () => {
       status: "ok",
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry deterministic server errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("bug", { status: 500 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchJson("/api/analyze", undefined, { retries: 3, retryDelayMs: 0 })).rejects.toThrow(
+      /status 500|bug/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns an actionable message after exhausted network retries", async () => {

@@ -209,8 +209,10 @@ GROQ_API_KEY = "..."
 GROQ_MODEL = "qwen/qwen3-32b"
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 DATA_ARTIFACT_URL = "https://github.com/Calvin-Liew/saas-intelligence-copilot/releases/download/v1/saas-demo-data-v1.zip"
+DATA_ARTIFACT_SHA256 = "1348aa5bfe11512192d635ffdc7ab76a072e93ac87d077e6eb5c44b4ab115550"
 USE_CHROMA = "1"
 PRODUCTION_MODE = "1"
+ALLOW_RUNTIME_ARTIFACT_BOOTSTRAP = "0"
 FRONTEND_ORIGINS = "https://saas-intelligence-copilot-calvi.netlify.app"
 ```
 
@@ -243,7 +245,7 @@ npm run capture:demo
 
 ## Production Deployment
 
-The production path is a React frontend on Netlify and a FastAPI backend on Render. The backend should not download Kaggle datasets at startup. Instead, package the processed CSVs and Chroma index locally, upload the zip to a GitHub Release, and point `DATA_ARTIFACT_URL` at that release asset.
+The production path is a React frontend on Netlify and a FastAPI backend on Render. The Render build downloads and verifies the packaged CSV/Chroma artifact once, so cold starts only read immutable deployment files. Runtime artifact downloads are disabled by default.
 
 Build the deploy artifact:
 
@@ -259,11 +261,17 @@ Upload `data/artifacts/saas-demo-data-v1.zip` to a GitHub Release.
 
 Render backend:
 
+- `render.yaml` installs the smaller pinned `requirements-prod.txt` dependency set.
+- `scripts/bootstrap_deploy_data.py` downloads the release artifact during the build and verifies `DATA_ARTIFACT_SHA256` before extraction.
+- `PRODUCTION_MODE=1` fails clearly if the built deployment is missing data; it does not repeatedly download the artifact at runtime.
+- `/api/bootstrap` exposes a stable terminal error and `/api/bootstrap/retry` provides an explicit bounded retry path.
+
 - service config: `render.yaml`
 - production URL: `https://saas-intelligence-copilot-api.onrender.com`
-- build command: `pip install -r requirements.txt`
+- build command: `pip install -r requirements-prod.txt && PYTHONPATH=src python scripts/bootstrap_deploy_data.py`
 - start command: `PYTHONPATH=src uvicorn saas_copilot.api:app --host 0.0.0.0 --port $PORT`
-- required secrets: `GROQ_API_KEY`, `DATA_ARTIFACT_URL`, and `FRONTEND_ORIGINS`
+- required secret: `GROQ_API_KEY`
+- deployment config: `DATA_ARTIFACT_URL`, `DATA_ARTIFACT_SHA256`, and `FRONTEND_ORIGINS`
 - artifact URL: `https://github.com/Calvin-Liew/saas-intelligence-copilot/releases/download/v1/saas-demo-data-v1.zip`
 
 Netlify frontend:

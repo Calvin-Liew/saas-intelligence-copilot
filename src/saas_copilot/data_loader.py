@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 import time
 import zipfile
@@ -678,21 +679,69 @@ def ensure_data_ready(paths=PATHS, artifact_url: str | None = None) -> str:
     if _has_processed_data(paths) and _has_chroma_index(paths):
         return "Processed data and Chroma index are available."
 
-    if artifact_url:
-        paths.artifact_dir.mkdir(parents=True, exist_ok=True)
-        artifact_path = paths.artifact_dir / "saas-demo-data.zip"
-        _download_file(artifact_url, artifact_path)
-        _extract_artifact(artifact_path, paths)
-        if _has_processed_data(paths) and _has_chroma_index(paths):
-            return f"Loaded processed data artifact from {artifact_url}."
+    allow_runtime_download = not RUNTIME.production_mode or getattr(
+        RUNTIME, "allow_runtime_artifact_bootstrap", False
+    )
+    if artifact_url and allow_runtime_download:
+        return install_data_artifact(
+            artifact_url,
+            paths=paths,
+            expected_sha256=getattr(RUNTIME, "data_artifact_sha256", ""),
+        )
 
     if RUNTIME.production_mode:
         raise RuntimeError(
             "Production mode requires processed data and Chroma indexes. "
-            "Set DATA_ARTIFACT_URL or package data before deployment."
+            "The deployment artifact must be installed during the build step."
         )
 
     return "Processed data artifact unavailable; demo fallback may be used."
+
+
+def install_data_artifact(
+    artifact_url: str,
+    paths=PATHS,
+    expected_sha256: str = "",
+    keep_archive: bool = False,
+) -> str:
+    """Download and install a deployment artifact.
+
+    Production invokes this during the immutable build phase. Runtime downloads
+    are disabled by default so Render cold starts only read packaged files.
+    """
+    if not artifact_url.strip():
+        raise ValueError("A deployment artifact URL is required.")
+
+    paths.artifact_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = paths.artifact_dir / "saas-demo-data.zip"
+    try:
+        _download_file(artifact_url, artifact_path)
+        _verify_file_sha256(artifact_path, expected_sha256)
+        _extract_artifact(artifact_path, paths)
+        if not (_has_processed_data(paths) and _has_chroma_index(paths)):
+            raise RuntimeError(
+                "The deployment artifact did not contain processed data and a Chroma index."
+            )
+    finally:
+        if not keep_archive and artifact_path.exists():
+            artifact_path.unlink()
+
+    return "Installed processed data and Chroma indexes from the deployment artifact."
+
+
+def _verify_file_sha256(path: Path, expected_sha256: str = "") -> None:
+    expected = expected_sha256.strip().lower()
+    if not expected:
+        return
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    actual = digest.hexdigest()
+    if actual != expected:
+        raise RuntimeError(
+            f"Deployment artifact checksum mismatch: expected {expected}, got {actual}."
+        )
 
 
 def load_processed_or_demo(paths=PATHS) -> tuple[pd.DataFrame, pd.DataFrame, str]:

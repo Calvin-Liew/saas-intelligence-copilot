@@ -10,9 +10,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from saas_copilot.api import app
+from saas_copilot.config import PATHS
 
 
 client = TestClient(app)
+requires_production_artifact = pytest.mark.skipif(
+    not (PATHS.product_master.exists() and PATHS.review_chunks.exists()),
+    reason="requires the packaged production dataset",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -23,12 +28,14 @@ def reset_api_caches():
     api_module._CHROMA_STATUS_CACHE = None
     api_module._OPTIONS_CACHE = None
     api_module._WARMUP_THREAD = None
+    api_module._WARMUP_LAST_STARTED_AT = None
     api_module._set_warmup_state("ready", "Test warmup is ready.")
     yield
     api_module._STATUS_CACHE = None
     api_module._CHROMA_STATUS_CACHE = None
     api_module._OPTIONS_CACHE = None
     api_module._WARMUP_THREAD = None
+    api_module._WARMUP_LAST_STARTED_AT = None
     api_module._set_warmup_state("idle", "Backend warmup has not started.")
 
 
@@ -87,7 +94,7 @@ def test_bootstrap_starts_background_warmup_without_inline_data_load(monkeypatch
         api_module._WARMUP_THREAD.join(timeout=2)
 
 
-def test_bootstrap_restarts_background_warmup_after_error(monkeypatch) -> None:
+def test_bootstrap_preserves_error_until_explicit_retry(monkeypatch) -> None:
     from saas_copilot import api as api_module
 
     worker_started = threading.Event()
@@ -102,10 +109,21 @@ def test_bootstrap_restarts_background_warmup_after_error(monkeypatch) -> None:
     monkeypatch.setattr(api_module, "_warmup_worker", fake_worker)
     test_client = TestClient(api_module.create_app())
 
-    response = test_client.get("/api/bootstrap")
+    failed_response = test_client.get("/api/bootstrap")
 
-    assert response.status_code == 200
-    assert response.json() == {
+    assert failed_response.status_code == 200
+    assert failed_response.json() == {
+        "ready": False,
+        "warming": False,
+        "error": "transient",
+        "message": "Backend warmup failed: HTTPError.",
+    }
+    assert not worker_started.is_set()
+
+    retry_response = test_client.post("/api/bootstrap/retry")
+
+    assert retry_response.status_code == 200
+    assert retry_response.json() == {
         "ready": False,
         "warming": True,
         "error": "",
@@ -178,16 +196,13 @@ def test_data_endpoints_return_fast_503_while_warming(monkeypatch) -> None:
         assert response.json()["detail"] == "Preparing test warmup."
 
 
-def test_data_endpoints_restart_warmup_after_error(monkeypatch) -> None:
+def test_data_endpoints_preserve_warmup_error(monkeypatch) -> None:
     from saas_copilot import api as api_module
 
     worker_started = threading.Event()
-    release_worker = threading.Event()
 
     def fake_worker() -> None:
         worker_started.set()
-        release_worker.wait(timeout=2)
-        api_module._set_warmup_state("ready", "Recovered warmup is ready.")
 
     def fail_if_loaded():
         raise AssertionError("error retry should start background warmup without inline data load")
@@ -201,12 +216,8 @@ def test_data_endpoints_restart_warmup_after_error(monkeypatch) -> None:
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "3"
-    assert response.json()["detail"] == "Preparing product data, Chroma indexes, enrichment metadata, and options."
-    assert worker_started.wait(timeout=1)
-    release_worker.set()
-    if api_module._WARMUP_THREAD is not None:
-        api_module._WARMUP_THREAD.join(timeout=2)
-    assert api_module._warmup_snapshot()["state"] == "ready"
+    assert response.json()["detail"] == "Backend warmup failed: HTTPError."
+    assert not worker_started.is_set()
 
 
 def test_cors_allows_netlify_production_and_deploy_urls(monkeypatch) -> None:
@@ -229,6 +240,7 @@ def test_cors_allows_netlify_production_and_deploy_urls(monkeypatch) -> None:
         assert response.headers["access-control-allow-origin"] == origin
 
 
+@requires_production_artifact
 def test_status_endpoint_reports_counts() -> None:
     response = client.get("/api/status")
     assert response.status_code == 200
@@ -344,6 +356,7 @@ def test_chroma_status_uses_sqlite_fallback_after_client_error(monkeypatch, tmp_
     api_module._CHROMA_STATUS_CACHE = None
 
 
+@requires_production_artifact
 def test_options_endpoint_includes_feature_labels() -> None:
     response = client.get("/api/options")
     assert response.status_code == 200
@@ -432,6 +445,7 @@ def test_options_endpoint_uses_short_lived_cache(monkeypatch) -> None:
     assert calls == 1
 
 
+@requires_production_artifact
 def test_analyze_endpoint_serializes_tables_and_provenance() -> None:
     response = client.post(
         "/api/analyze",
@@ -484,6 +498,7 @@ def test_vendor_metadata_serializes_null_safe_values() -> None:
     assert not _contains_nan(data["vendor_metadata"])
 
 
+@requires_production_artifact
 def test_open_source_alternatives_require_explicit_api_intent() -> None:
     response = client.post(
         "/api/analyze",
@@ -506,6 +521,7 @@ def test_open_source_alternatives_require_explicit_api_intent() -> None:
     assert not _contains_nan(alternatives)
 
 
+@requires_production_artifact
 def test_support_analysis_returns_review_themes_and_evidence_snippets() -> None:
     response = client.post(
         "/api/analyze",

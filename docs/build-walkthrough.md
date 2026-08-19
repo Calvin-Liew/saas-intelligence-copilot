@@ -210,7 +210,7 @@ Production uses:
 - Render for the FastAPI backend
 - GitHub Release asset for the packaged processed data and Chroma index
 
-The backend should not download Kaggle data at startup. Instead, the data is prepared locally and packaged:
+The backend does not download data during runtime startup. The data is prepared locally and packaged:
 
 ```powershell
 python scripts/enrich_online_sources.py
@@ -220,7 +220,7 @@ python scripts/build_chroma.py
 python scripts/package_artifact.py
 ```
 
-The artifact is uploaded to a GitHub Release and Render receives the URL through `DATA_ARTIFACT_URL`.
+The artifact is uploaded to a GitHub Release. During the Render build, `scripts/bootstrap_deploy_data.py` downloads it through `DATA_ARTIFACT_URL`, verifies `DATA_ARTIFACT_SHA256`, and extracts it into the immutable deployment. Runtime cold starts only read those packaged files.
 
 Render uses `render.yaml`:
 

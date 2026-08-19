@@ -40,7 +40,11 @@ class RuntimeConfig:
     groq_base_url: str = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
     groq_model: str = os.getenv("GROQ_MODEL", "qwen/qwen3-32b")
     data_artifact_url: str = os.getenv("DATA_ARTIFACT_URL", "")
+    data_artifact_sha256: str = os.getenv("DATA_ARTIFACT_SHA256", "")
     production_mode: bool = os.getenv("PRODUCTION_MODE", "0").lower() in {"1", "true", "yes"}
+    allow_runtime_artifact_bootstrap: bool = os.getenv(
+        "ALLOW_RUNTIME_ARTIFACT_BOOTSTRAP", "0"
+    ).lower() in {"1", "true", "yes"}
     use_chroma: bool = os.getenv("USE_CHROMA", "1").lower() not in {"0", "false", "no"}
 
 

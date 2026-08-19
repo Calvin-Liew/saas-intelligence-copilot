@@ -1,0 +1,10 @@
+# Production API dependencies are pinned so Render rebuilds are reproducible.
+# Data preparation and Streamlit-only packages remain in requirements.txt.
+pandas==3.0.2
+numpy==2.4.4
+scikit-learn==1.8.0
+chromadb==1.5.8
+requests==2.33.1
+python-dotenv==1.2.2
+fastapi==0.136.1
+uvicorn[standard]==0.46.0

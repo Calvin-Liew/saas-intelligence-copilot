@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sqlite3
 import threading
@@ -24,6 +25,9 @@ from .pipeline import (
 from .presets import DEMO_PRESETS
 from .scoring import feature_columns, is_review_derived_feature
 
+
+logger = logging.getLogger(__name__)
+
 _CHROMA_STATUS_CACHE: tuple[float, dict[str, Any]] | None = None
 _CHROMA_SUCCESS_TTL_SECONDS = 300
 _CHROMA_FAILURE_TTL_SECONDS = 10
@@ -32,8 +36,10 @@ _STATUS_TTL_SECONDS = 60
 _OPTIONS_CACHE: tuple[float, dict[str, Any]] | None = None
 _OPTIONS_TTL_SECONDS = 300
 _WARMUP_RETRY_AFTER_SECONDS = 3
+_WARMUP_RETRY_COOLDOWN_SECONDS = 10
 _WARMUP_LOCK = threading.Lock()
 _WARMUP_THREAD: threading.Thread | None = None
+_WARMUP_LAST_STARTED_AT: float | None = None
 _WARMUP_STATE = {
     "state": "idle",
     "message": "Backend warmup has not started.",
@@ -77,6 +83,10 @@ def create_app() -> FastAPI:
     @app.get("/api/bootstrap")
     def bootstrap() -> dict[str, Any]:
         return _bootstrap_payload()
+
+    @app.post("/api/bootstrap/retry")
+    def retry_bootstrap() -> dict[str, Any]:
+        return _retry_bootstrap_payload()
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
@@ -132,8 +142,8 @@ def create_app() -> FastAPI:
     return app
 
 
-def _start_warmup() -> None:
-    global _WARMUP_THREAD
+def _start_warmup(force: bool = False) -> None:
+    global _WARMUP_LAST_STARTED_AT, _WARMUP_THREAD
     with _WARMUP_LOCK:
         thread_alive = _WARMUP_THREAD is not None and _WARMUP_THREAD.is_alive()
         if _WARMUP_STATE["state"] == "ready":
@@ -148,6 +158,17 @@ def _start_warmup() -> None:
             else:
                 return
 
+        if _WARMUP_STATE["state"] == "error" and not force:
+            return
+
+        now = monotonic()
+        if (
+            force
+            and _WARMUP_LAST_STARTED_AT is not None
+            and now - _WARMUP_LAST_STARTED_AT < _WARMUP_RETRY_COOLDOWN_SECONDS
+        ):
+            return
+
         _set_warmup_state_locked(
             "warming",
             "Preparing product data, Chroma indexes, enrichment metadata, and options.",
@@ -157,6 +178,7 @@ def _start_warmup() -> None:
             name="saasscout-warmup",
             daemon=True,
         )
+        _WARMUP_LAST_STARTED_AT = now
         _WARMUP_THREAD.start()
 
 
@@ -165,10 +187,11 @@ def _warmup_worker() -> None:
         _status_payload()
         _options_payload()
     except Exception as exc:
+        logger.exception("Backend warmup failed")
         _set_warmup_state(
             "error",
-            f"Backend warmup failed: {type(exc).__name__}.",
-            str(exc),
+            "Backend warmup failed. Check the deployment logs and artifact configuration, then retry.",
+            _safe_warmup_error(exc),
         )
         return
     _set_warmup_state(
@@ -179,7 +202,7 @@ def _warmup_worker() -> None:
 
 def _bootstrap_payload() -> dict[str, Any]:
     snapshot = _warmup_snapshot()
-    if snapshot["state"] in {"idle", "error"}:
+    if snapshot["state"] == "idle":
         _start_warmup()
         snapshot = _warmup_snapshot()
     return {
@@ -190,9 +213,14 @@ def _bootstrap_payload() -> dict[str, Any]:
     }
 
 
+def _retry_bootstrap_payload() -> dict[str, Any]:
+    _start_warmup(force=True)
+    return _bootstrap_payload()
+
+
 def _require_warmup_ready() -> None:
     snapshot = _warmup_snapshot()
-    if snapshot["state"] in {"idle", "error"}:
+    if snapshot["state"] == "idle":
         _start_warmup()
         snapshot = _warmup_snapshot()
     if snapshot["state"] == "ready":
@@ -202,6 +230,16 @@ def _require_warmup_ready() -> None:
         detail=snapshot["message"],
         headers={"Retry-After": str(_WARMUP_RETRY_AFTER_SECONDS)},
     )
+
+
+def _safe_warmup_error(exc: Exception) -> str:
+    detail = str(exc).strip()
+    artifact_url = RUNTIME.data_artifact_url.strip()
+    if artifact_url:
+        detail = detail.replace(artifact_url, "DATA_ARTIFACT_URL")
+    if len(detail) > 300:
+        detail = detail[:297] + "..."
+    return f"{type(exc).__name__}: {detail}" if detail else type(exc).__name__
 
 
 def _warmup_snapshot() -> dict[str, str]:
