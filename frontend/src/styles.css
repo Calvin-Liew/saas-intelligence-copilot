@@ -574,6 +574,62 @@ input[type="number"],
     @apply font-semibold;
   }
 
+  .markdown > p:has(> strong:only-child) {
+    @apply mb-1 mt-5 border-l-2 border-accent pl-3 text-sm font-semibold text-ink first:mt-0;
+  }
+
+  .markdown a {
+    @apply font-medium text-accent underline decoration-accent/30 underline-offset-2 transition hover:decoration-accent;
+  }
+
+  .markdown blockquote {
+    @apply my-3 rounded-r-md border-l-4 border-signal bg-panel px-4 py-2 text-muted;
+  }
+
+  .markdown code {
+    @apply rounded bg-panel px-1.5 py-0.5 font-mono text-xs text-ink;
+  }
+
+  .markdown-table-wrap {
+    @apply my-4 max-w-full overflow-x-auto rounded-lg border border-line bg-surface shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
+    scrollbar-gutter: stable;
+  }
+
+  .markdown-table-wrap table {
+    @apply min-w-[900px] text-[13px] leading-5;
+  }
+
+  .markdown-table-wrap th {
+    @apply whitespace-nowrap bg-panel px-4 py-3 text-[11px];
+  }
+
+  .markdown-table-wrap td {
+    @apply min-w-32 max-w-72 whitespace-normal px-4 py-3;
+    overflow-wrap: anywhere;
+  }
+
+  .markdown-table-wrap tbody tr:nth-child(even) td {
+    @apply bg-panel/50;
+  }
+
+  .markdown-table-wrap th:first-child,
+  .markdown-table-wrap td:first-child {
+    @apply sticky left-0 z-[5] min-w-36 font-semibold;
+    box-shadow: 1px 0 0 hsl(var(--color-line));
+  }
+
+  .markdown-table-wrap th:first-child {
+    @apply z-[15] bg-panel;
+  }
+
+  .markdown-table-wrap tbody tr:nth-child(odd) td:first-child {
+    @apply bg-surface;
+  }
+
+  .markdown-table-wrap tbody tr:nth-child(even) td:first-child {
+    @apply bg-panel;
+  }
+
   .side-panel {
     @apply rounded-ds-lg border border-line bg-panel p-4;
   }

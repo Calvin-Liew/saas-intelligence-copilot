@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { analyze, getBootstrap, getOptions, getStatus, retryBootstrap } from "./api";
 import type { AnalysisResult, AnalyzeRequest, ApiOptions, ApiStatus, BootstrapStatus, DemoPreset, Dict } from "./types";
 
@@ -836,6 +837,8 @@ function MultiSelect({
 }
 
 function AnswerView({ result }: { result: AnalysisResult }) {
+  const memo = formatMemoMarkdown(result.answer, result.required_features);
+
   return (
     <div className="flex flex-col gap-4">
       <ToolCards rows={result.recommended_tools} />
@@ -849,7 +852,28 @@ function AnswerView({ result }: { result: AnalysisResult }) {
             <Badge>{titleCase(result.confidence)} confidence</Badge>
           </div>
           <div className="markdown">
-            <ReactMarkdown>{result.answer}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ children }) => (
+                  <div
+                    className="markdown-table-wrap"
+                    role="region"
+                    aria-label="Scrollable recommendation comparison"
+                    tabIndex={0}
+                  >
+                    <table>{children}</table>
+                  </div>
+                ),
+                a: ({ children, href }) => (
+                  <a href={href} target="_blank" rel="noreferrer">
+                    {children}
+                  </a>
+                ),
+              }}
+            >
+              {memo}
+            </ReactMarkdown>
           </div>
         </article>
         <aside className="side-panel">
@@ -1239,6 +1263,16 @@ function readableFeatureLabel(value: string): string {
 
   const cleaned = words.join(" ").replace(/\b(And|Or|For|With|Of|To|In|By)\b/g, (word) => word.toLowerCase());
   return reviewDerived ? `${cleaned} (review-derived)` : cleaned;
+}
+
+function formatMemoMarkdown(answer: string, requiredFeatures: string[]): string {
+  return [...requiredFeatures]
+    .filter((feature) => feature.includes("_"))
+    .sort((left, right) => right.length - left.length)
+    .reduce(
+      (memo, feature) => memo.split(feature).join(readableFeatureLabel(feature)),
+      answer,
+    );
 }
 
 function tabLabel(tab: Tab, result: AnalysisResult): string {

@@ -102,7 +102,18 @@ const openSourceAlternative = {
 };
 
 const analyzeResponse = {
-  answer: "Direct answer: Freshdesk, Zendesk, and Zoho Desk are viable support options.",
+  answer: [
+    "**Direct answer**",
+    "",
+    "Direct answer: Freshdesk, Zendesk, and Zoho Desk are viable support options.",
+    "",
+    "**Recommended tools (ranked by evidence)**",
+    "",
+    "| Product | Evidence score | Pricing | Matched features |",
+    "| --- | ---: | --- | --- |",
+    "| Freshdesk | 0.742 | Free plan | ticket_creation_and_assignment |",
+    "| Zendesk | 0.715 | $19 per agent/mo | ticket_creation_and_assignment |",
+  ].join("\n"),
   confidence: "medium",
   source_notice: "Using processed Kaggle/local dataset files.",
   llm: { provider: "template", model: "grounded-template", status: "disabled", warning: "" },
@@ -349,6 +360,9 @@ test("runs analysis and renders cards, tabs, tables, and evidence", async ({ pag
 
   await expect(page.getByLabel("Recommended tools")).toContainText("Freshdesk");
   await expect(page.getByText("Direct answer: Freshdesk")).toBeVisible();
+  const memoTable = page.locator(".answer-card").getByRole("table");
+  await expect(memoTable).toBeVisible();
+  await expect(memoTable).toContainText("Ticket Creation and Assignment");
   await expect(page.getByLabel("Evidence used in answer")).toContainText("Structured Product Evidence");
   await expect(page.getByLabel("Evidence used in answer")).toContainText("Review Evidence");
   await expect(page.getByLabel("Evidence used in answer")).toContainText("Enterprise Metadata");
