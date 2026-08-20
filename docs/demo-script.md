@@ -3,7 +3,7 @@
 ## 60-Second Walkthrough
 
 1. Open the live demo: `https://saas-intelligence-copilot-calvi.netlify.app`.
-2. Point out the status strip: product count, review chunks, Chroma, enrichment, and Groq/Qwen provider state.
+2. Point out the status strip: product count, review chunks, Chroma, enrichment, and Groq provider state.
 3. Run the default support comparison prompt: `Compare Zendesk, Zoho Desk, and Freshdesk for support ticketing pain points.`
 4. Show the answer tab, then the scorecard and evidence tabs.
 5. Call out the key product idea: SaaSScout separates structured product/pricing data from review evidence, enterprise metadata, and public vendor facts.

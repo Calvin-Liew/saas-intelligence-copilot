@@ -38,7 +38,7 @@ class RuntimeConfig:
     llm_provider: str = os.getenv("LLM_PROVIDER", "ollama").lower()
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     groq_base_url: str = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-    groq_model: str = os.getenv("GROQ_MODEL", "qwen/qwen3-32b")
+    groq_model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
     data_artifact_url: str = os.getenv("DATA_ARTIFACT_URL", "")
     data_artifact_sha256: str = os.getenv("DATA_ARTIFACT_SHA256", "")
     production_mode: bool = os.getenv("PRODUCTION_MODE", "0").lower() in {"1", "true", "yes"}

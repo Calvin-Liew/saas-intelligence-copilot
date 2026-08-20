@@ -15,10 +15,10 @@ const statusResponse = {
     status: "Ready (FactGrid 21 / Wikidata 90 / OSS 1029)",
   },
   llm: {
-    label: "Groq qwen/qwen3-32b",
+    label: "Groq openai/gpt-oss-120b",
     available: true,
     provider: "groq",
-    model: "qwen/qwen3-32b",
+    model: "openai/gpt-oss-120b",
     status: "ok",
     warning: "",
   },

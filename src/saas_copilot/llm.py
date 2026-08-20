@@ -141,6 +141,14 @@ def generate_with_groq(
                 status="rate_limited",
                 warning="Groq rate limit reached; using grounded template.",
             )
+        if response.status_code >= 400:
+            return LLMResult(
+                content=None,
+                provider="groq",
+                model=model,
+                status=_groq_http_status(response.status_code),
+                warning=_groq_http_warning(response.status_code, model),
+            )
         response.raise_for_status()
         data = response.json()
         content = data.get("choices", [{}])[0].get("message", {}).get("content")
@@ -153,6 +161,26 @@ def generate_with_groq(
             status="error",
             warning=f"Groq generation failed ({type(exc).__name__}); using grounded template.",
         )
+
+
+def _groq_http_status(status_code: int) -> str:
+    if status_code in {400, 404, 422}:
+        return "model_rejected"
+    if status_code in {401, 403}:
+        return "authentication_error"
+    if status_code >= 500:
+        return "provider_error"
+    return "error"
+
+
+def _groq_http_warning(status_code: int, model: str) -> str:
+    if status_code in {400, 404, 422}:
+        return f"Groq rejected model {model} (HTTP {status_code}); using grounded template."
+    if status_code in {401, 403}:
+        return f"Groq authentication failed (HTTP {status_code}); using grounded template."
+    if status_code >= 500:
+        return f"Groq service error (HTTP {status_code}); using grounded template."
+    return f"Groq generation failed (HTTP {status_code}); using grounded template."
 
 
 def generate_with_ollama_result(

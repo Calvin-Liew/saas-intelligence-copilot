@@ -730,7 +730,7 @@ function compactHeaderStatus(status: ApiStatus | null, bootstrap: BootstrapStatu
     reviews: status ? compactNumber(status.review_count) : "-",
     chroma: status?.chroma.ready ? "Ready" : (status?.chroma.status ?? (bootstrap.ready ? "Loading" : "Preparing")),
     enrichment,
-    llm: status?.llm.provider === "groq" ? "Groq Qwen" : (status?.llm.label ?? (bootstrap.ready ? "Loading" : "Preparing")),
+    llm: status?.llm.label ?? (bootstrap.ready ? "Loading" : "Preparing"),
   };
 }
 

@@ -146,7 +146,7 @@ The LLM wrapper lives in `src/saas_copilot/llm.py`.
 
 Supported paths:
 
-- Groq/Qwen for the online demo
+- Groq/GPT-OSS for the online demo
 - Ollama/Qwen for local use
 - grounded template fallback when the LLM is disabled or unavailable
 

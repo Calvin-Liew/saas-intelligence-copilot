@@ -41,7 +41,7 @@ For technical reviewers:
 | Data enrichment | Supplemental pricing, review-derived support feature signals, FactGrid enterprise metadata, domain-verified Wikidata vendor facts, and OpenAlternative discovery |
 | Retrieval | Separate Chroma collections for products, reviews, and open-source alternatives with TF-IDF fallback and retriever metadata |
 | Ranking and grounding | Feature-fit, pricing, review, category, evidence-quality, and provenance-aware scoring before answer generation |
-| Generation | Provider-neutral LLM layer with Groq/Qwen online, Ollama/Qwen local, and deterministic grounded-template fallback |
+| Generation | Provider-neutral LLM layer with Groq/GPT-OSS online, Ollama/Qwen local, and deterministic grounded-template fallback |
 | Backend | FastAPI routes for health, status, options, and analysis, with production artifact bootstrap and cached status checks |
 | Frontend | React, TypeScript, Vite, and Tailwind dashboard with guided setup, readable feature labels, evidence tabs, loading states, and template-mode retry |
 | Deployment and reliability | Netlify frontend, Render backend, same-origin API proxy, packaged data/Chroma artifact, production smoke monitor, and scheduled GitHub Actions monitoring |
@@ -93,7 +93,7 @@ Core implementation:
 - Pricing-aware ranking with missing-data handling
 - Review snippet retrieval and pain-point summaries
 - Confidence level based on pricing, feature, and review coverage
-- Provider-neutral grounded answer generation: Groq/Qwen online, Ollama/Qwen local, or deterministic template fallback
+- Provider-neutral grounded answer generation: Groq/GPT-OSS online, Ollama/Qwen local, or deterministic template fallback
 
 ## Current Demo State
 
@@ -110,7 +110,7 @@ The local demo currently uses the downloaded Kaggle datasets and processed index
 - Support-ticket feature gaps are filled with clearly labeled review-derived Capterra support feature signals
 - Chroma collections for product, review, and open-source alternative retrieval
 - Local Qwen via Ollama: `qwen2.5:1.5b`
-- Online target: Groq `qwen/qwen3-32b`
+- Online target: Groq `openai/gpt-oss-120b`
 
 ## Run the Demo
 
@@ -206,7 +206,7 @@ For an online free-tier demo, configure the Render backend with Groq:
 ```toml
 LLM_PROVIDER = "groq"
 GROQ_API_KEY = "..."
-GROQ_MODEL = "qwen/qwen3-32b"
+GROQ_MODEL = "openai/gpt-oss-120b"
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 DATA_ARTIFACT_URL = "https://github.com/Calvin-Liew/saas-intelligence-copilot/releases/download/v1/saas-demo-data-v1.zip"
 DATA_ARTIFACT_SHA256 = "1348aa5bfe11512192d635ffdc7ab76a072e93ac87d077e6eb5c44b4ab115550"
@@ -224,7 +224,7 @@ VITE_API_BASE_URL=same-origin
 
 Netlify proxies `/api/*` to the Render backend through `netlify.toml`, so the frontend can call the API from both the main production URL and Netlify deploy URLs without browser CORS failures.
 
-Smoke test the full Chroma + Qwen path:
+Smoke test the full Chroma + configured LLM path:
 
 ```powershell
 python scripts/smoke_llm.py
